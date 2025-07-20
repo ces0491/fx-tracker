@@ -1,5 +1,3 @@
-"use client"
-
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, RefreshCw, Newspaper, BarChart3, Globe, Calendar, AlertCircle, Activity, Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
@@ -223,11 +221,12 @@ const FXTracker = () => {
   }, []);
 
   const formatRate = (rate) => {
-    if (!rate) return '--';
+    if (!rate || isNaN(rate) || rate === undefined || rate === null) return '--';
     return rate < 1 ? rate.toFixed(5) : rate.toFixed(4);
   };
 
   const formatDateForChart = (dateStr) => {
+    if (!dateStr) return '';
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
@@ -260,6 +259,9 @@ const FXTracker = () => {
     
     const current = historical[historical.length - 1];
     const previous = historical[historical.length - 2];
+    
+    if (!current || !previous || !current.rate || !previous.rate) return 0;
+    
     return ((current.rate - previous.rate) / previous.rate) * 100;
   };
 
@@ -385,7 +387,8 @@ const FXTracker = () => {
                     {formatRate(rates[selectedPair])}
                   </div>
                   <div className={`text-sm font-medium ${getChangeColor(getCurrentChange(selectedPair))}`}>
-                    {getCurrentChange(selectedPair) > 0 ? '+' : ''}{getCurrentChange(selectedPair).toFixed(3)}%
+                    {getCurrentChange(selectedPair) && !isNaN(getCurrentChange(selectedPair)) ? 
+                      (getCurrentChange(selectedPair) > 0 ? '+' : '') + getCurrentChange(selectedPair).toFixed(3) + '%' : '--'}
                   </div>
                 </div>
               </div>
@@ -549,7 +552,7 @@ const FXTracker = () => {
                           forecast[selectedPair].rsi > 70 ? 'text-red-600' :
                           forecast[selectedPair].rsi < 30 ? 'text-green-600' : 'text-gray-600'
                         }`}>
-                          {forecast[selectedPair].rsi.toFixed(1)}
+                          {forecast[selectedPair].rsi ? forecast[selectedPair].rsi.toFixed(1) : '--'}
                         </div>
                         <div className="text-sm text-gray-600">
                           {forecast[selectedPair].rsi > 70 ? 'Overbought' :
@@ -560,7 +563,7 @@ const FXTracker = () => {
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h4 className="font-medium text-gray-900 mb-2">Volatility (Annual)</h4>
                         <div className="text-lg font-bold text-gray-900">
-                          {(forecast[selectedPair].volatility * 100).toFixed(1)}%
+                          {forecast[selectedPair].volatility ? (forecast[selectedPair].volatility * 100).toFixed(1) + '%' : '--'}
                         </div>
                         <div className="text-sm text-gray-600">
                           {forecast[selectedPair].volatility > 0.2 ? 'High' :
@@ -620,7 +623,7 @@ const FXTracker = () => {
                       </div>
                       
                       <div className={`text-sm font-medium ${getChangeColor(change)}`}>
-                        {change > 0 ? '+' : ''}{change.toFixed(3)}%
+                        {change && !isNaN(change) ? (change > 0 ? '+' : '') + change.toFixed(3) + '%' : '--'}
                       </div>
                     </div>
                   );
@@ -670,12 +673,21 @@ const FXTracker = () => {
                   <h4 className="font-medium text-gray-900 mb-2">Analysis Summary</h4>
                   <p className="text-sm text-gray-700">
                     Based on technical analysis, {selectedPair} shows a <strong>{forecast[selectedPair].trend}</strong> bias 
-                    with <strong>{forecast[selectedPair].strength}</strong> conviction. The current RSI of {forecast[selectedPair].rsi.toFixed(1)} 
-                    indicates {forecast[selectedPair].rsi > 70 ? 'overbought conditions' : 
-                                forecast[selectedPair].rsi < 30 ? 'oversold conditions' : 'neutral momentum'}. 
-                    Annualized volatility is {(forecast[selectedPair].volatility * 100).toFixed(1)}%, suggesting 
-                    {forecast[selectedPair].volatility > 0.2 ? ' elevated' : 
-                     forecast[selectedPair].volatility > 0.1 ? ' moderate' : ' low'} price uncertainty.
+                    with <strong>{forecast[selectedPair].strength}</strong> conviction. 
+                    {forecast[selectedPair].rsi ? (
+                      <>
+                        The current RSI of {forecast[selectedPair].rsi.toFixed(1)} 
+                        indicates {forecast[selectedPair].rsi > 70 ? 'overbought conditions' : 
+                                    forecast[selectedPair].rsi < 30 ? 'oversold conditions' : 'neutral momentum'}. 
+                      </>
+                    ) : 'RSI data is being calculated. '}
+                    {forecast[selectedPair].volatility ? (
+                      <>
+                        Annualized volatility is {(forecast[selectedPair].volatility * 100).toFixed(1)}%, suggesting 
+                        {forecast[selectedPair].volatility > 0.2 ? ' elevated' : 
+                         forecast[selectedPair].volatility > 0.1 ? ' moderate' : ' low'} price uncertainty.
+                      </>
+                    ) : 'Volatility analysis is loading.'}
                   </p>
                 </div>
               </div>
