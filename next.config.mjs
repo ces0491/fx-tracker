@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  trailingSlash: true,
+  // Removed output: 'export' to enable API routes
+  // trailingSlash: true,  // Optional: remove if not needed
   images: {
     unoptimized: true
   }
