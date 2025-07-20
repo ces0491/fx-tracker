@@ -43,86 +43,86 @@ const FXTracker = () => {
     'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD', 'EUR/GBP'
   ];
 
-  // Alpha Vantage API configuration
+  // API configuration
   const ALPHA_VANTAGE_API_KEY = '7BY8PWEG91UBMXJ7';
   const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
+  const EXCHANGE_RATE_API_KEY = '4fa30aea39fa0469759353fc';
+  const EXCHANGE_RATE_BASE_URL = 'https://v6.exchangerate-api.com/v6';
 
-  // Fetch real exchange rates from Alpha Vantage
+  // Fetch real-time rates from ExchangeRate-API (fast and reliable)
   const fetchRates = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Get real-time rates for major pairs from Alpha Vantage
-      const ratePromises = suggestedPairs.map(async (pair) => {
-        const [from, to] = pair.split('/');
-        try {
-          const response = await fetch(
-            `${ALPHA_VANTAGE_BASE_URL}?function=CURRENCY_EXCHANGE_RATE&from_currency=${from}&to_currency=${to}&apikey=${ALPHA_VANTAGE_API_KEY}`
-          );
-          const data = await response.json();
-          
-          if (data['Realtime Currency Exchange Rate']) {
-            return {
-              pair,
-              rate: parseFloat(data['Realtime Currency Exchange Rate']['5. Exchange Rate'])
-            };
-          }
-          return null;
-        } catch (err) {
-          console.error(`Error fetching rate for ${pair}:`, err);
-          return null;
-        }
-      });
-
-      // Wait for all rate requests with delay to avoid rate limiting
-      const rateResults = [];
-      for (let i = 0; i < ratePromises.length; i++) {
-        if (i > 0) {
-          // Add delay between requests to avoid rate limiting (Alpha Vantage allows 5 requests per minute)
-          await new Promise(resolve => setTimeout(resolve, 12000)); // 12 second delay
-        }
-        try {
-          const result = await ratePromises[i];
-          if (result) {
-            rateResults.push(result);
-          }
-        } catch (err) {
-          console.error('Rate fetch error:', err);
-        }
-      }
-
-      // Convert to rates object
-      const crossRates = {};
-      rateResults.forEach(({ pair, rate }) => {
-        crossRates[pair] = rate;
-      });
-
-      // Calculate additional cross rates for all currency combinations
-      currencies.forEach(base => {
-        currencies.forEach(quote => {
-          if (base !== quote && !crossRates[`${base}/${quote}`]) {
-            // Try to calculate cross rate from existing rates
-            const baseUSD = crossRates[`${base}/USD`] || (crossRates[`USD/${base}`] ? 1/crossRates[`USD/${base}`] : null);
-            const quoteUSD = crossRates[`${quote}/USD`] || (crossRates[`USD/${quote}`] ? 1/crossRates[`USD/${quote}`] : null);
-            
-            if (baseUSD && quoteUSD) {
-              crossRates[`${base}/${quote}`] = quoteUSD / baseUSD;
+      // Use ExchangeRate-API for current rates - much faster and more reliable
+      const response = await fetch(`${EXCHANGE_RATE_BASE_URL}/${EXCHANGE_RATE_API_KEY}/latest/USD`);
+      const data = await response.json();
+      
+      if (data && data.conversion_rates) {
+        // Calculate cross rates for all currency combinations
+        const crossRates = {};
+        
+        currencies.forEach(base => {
+          currencies.forEach(quote => {
+            if (base !== quote) {
+              let rate;
+              if (base === 'USD') {
+                // USD to other currency (e.g., USD/ZAR = 18.5)
+                rate = data.conversion_rates[quote];
+              } else if (quote === 'USD') {
+                // Other currency to USD (e.g., NZD/USD = 1/1.68)
+                rate = 1 / data.conversion_rates[base];
+              } else {
+                // Cross rate calculation (e.g., NZD/ZAR)
+                // 1 NZD = (1/NZD_rate) USD, then * ZAR_rate = ZAR
+                const baseRate = data.conversion_rates[base]; // USD/Base (e.g., USD/NZD = 1.68)
+                const quoteRate = data.conversion_rates[quote]; // USD/Quote (e.g., USD/ZAR = 18.5)
+                if (baseRate && quoteRate) {
+                  rate = quoteRate / baseRate; // ZAR per NZD = 18.5 / 1.68 ≈ 11.01
+                }
+              }
+              if (rate && !isNaN(rate) && rate > 0) {
+                crossRates[`${base}/${quote}`] = rate;
+              }
             }
-          }
+          });
         });
-      });
-      
-      setRates(crossRates);
-      setLastUpdate(new Date());
-      
-      // Fetch historical data for the selected pair
-      if (crossRates[selectedPair]) {
-        await fetchHistoricalData(selectedPair);
+        
+        // Debug log to check key rates and calculations
+        console.log('Raw conversion rates from API:');
+        console.log('USD/NZD:', data.conversion_rates['NZD']);
+        console.log('USD/ZAR:', data.conversion_rates['ZAR']);
+        console.log('USD/EUR:', data.conversion_rates['EUR']);
+        
+        // Validate key rates make sense
+        const nzdRate = crossRates['NZD/ZAR'];
+        const eurRate = crossRates['EUR/USD'];
+        const gbpRate = crossRates['GBP/USD'];
+        
+        console.log('Calculated cross rates:');
+        console.log('NZD/ZAR:', nzdRate, '(should be ~10-12)');
+        console.log('EUR/USD:', eurRate, '(should be ~1.05-1.15)');
+        console.log('GBP/USD:', gbpRate, '(should be ~1.20-1.35)');
+        
+        // Sanity check: NZD/ZAR should be between 8-15
+        if (nzdRate && (nzdRate < 8 || nzdRate > 15)) {
+          console.warn('NZD/ZAR rate seems incorrect:', nzdRate);
+        }
+        
+        setRates(crossRates);
+        setLastUpdate(new Date());
+        
+        // Auto-fetch historical data for selected pair if we have rates
+        if (crossRates[selectedPair]) {
+          await fetchHistoricalData(selectedPair);
+        }
+        
+      } else {
+        setError('Failed to fetch current exchange rates. Please try again later.');
       }
-      
     } catch (err) {
-      setError('Failed to fetch exchange rates from Alpha Vantage. Please check your internet connection and try again.');
+      setError('Failed to fetch exchange rates. Please check your internet connection and try again.');
       console.error('Error fetching rates:', err);
     } finally {
       setLoading(false);
@@ -260,87 +260,123 @@ const FXTracker = () => {
     return forecast;
   };
 
-  // Generate historical data and forecast
-  const generateHistoricalData = (currentRates) => {
-    const historical = {};
-    const forecasts = {};
-    
-    // Calculate days between start and end date
-    const startDate = new Date(dateRange.start);
-    const endDate = new Date(dateRange.end);
-    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-    
-    suggestedPairs.forEach(pair => {
-      if (currentRates[pair]) {
-        const currentRate = currentRates[pair];
-        const data = [];
-        
-        // Generate historical data based on selected date range
-        for (let i = daysDiff; i >= 0; i--) {
-          const date = new Date(endDate);
-          date.setDate(date.getDate() - i);
-          
-          // Enhanced volatility model
-          const baseVolatility = 0.015;
-          const timeDecay = Math.exp(-i / 60); // volatility increases closer to present
-          const volatility = baseVolatility * (1 + timeDecay);
-          
-          // Add market microstructure effects
-          const dayOfWeek = date.getDay();
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-          const weekendEffect = isWeekend ? 0.5 : 1.0; // reduced volatility on weekends
-          
-          // Random walk with drift
-          const drift = 0.0001; // small positive drift
-          const randomChange = (Math.random() - 0.5) * volatility * weekendEffect;
-          const rate = currentRate * Math.exp((drift + randomChange) * (daysDiff - i));
-          
-          // Generate OHLC data for candlesticks
-          const intraday_volatility = rate * 0.005;
-          const open = i === daysDiff ? rate : data[data.length - 1]?.close || rate;
-          const high = rate + (Math.random() * intraday_volatility);
-          const low = rate - (Math.random() * intraday_volatility);
-          const close = rate;
-          
-          data.push({
-            date: date.toISOString().split('T')[0],
-            open: Math.max(low, open),
-            high: Math.max(open, close, high),
-            low: Math.min(open, close, low),
-            close: close,
-            rate: close, // for backward compatibility
-            volume: Math.floor(Math.random() * 1000000) + 500000,
-            change: i > 0 ? ((close - (data[data.length - 1]?.close || close)) / (data[data.length - 1]?.close || close) * 100) : 0
-          });
-        }
-        
-        // Calculate technical indicators
-        const enhancedData = calculateIndicators(data);
-        
-        // Generate advanced forecast
-        const forecastData = advancedForecast(enhancedData, forecastDays);
-        
-        // Calculate trend and strength
-        const recentRates = enhancedData.slice(-14).map(d => d.close);
-        const firstRate = recentRates[0];
-        const lastRate = recentRates[recentRates.length - 1];
-        const trend = (lastRate - firstRate) / firstRate;
-        
-        // Calculate support and resistance levels
-        const highs = enhancedData.slice(-30).map(d => d.high);
-        const lows = enhancedData.slice(-30).map(d => d.low);
-        const resistance = highs.sort((a, b) => b - a)[2]; // 3rd highest
-        const support = lows.sort((a, b) => a - b)[2]; // 3rd lowest
-        
-        // Calculate volatility
-        const returns = enhancedData.slice(-30).map((d, i, arr) => 
-          i > 0 ? Math.log(d.close / arr[i-1].close) : 0
-        ).slice(1);
-        const variance = returns.reduce((sum, r) => sum + r * r, 0) / returns.length;
-        const volatility = Math.sqrt(variance * 252); // annualized
-        
-        historical[pair] = enhancedData;
-        forecasts[pair] = {
+  // Fetch real historical data from Alpha Vantage (used only for historical analysis)
+  const fetchHistoricalData = async (pair) => {
+    try {
+      const [from, to] = pair.split('/');
+      
+      // Determine the appropriate time series function based on date range
+      const startDate = new Date(dateRange.start);
+      const endDate = new Date(dateRange.end);
+      const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+      
+      let func, interval = '';
+      if (daysDiff <= 30) {
+        func = 'FX_INTRADAY';
+        interval = '60min'; // 1-hour intervals for recent data
+      } else {
+        func = 'FX_DAILY';
+      }
+      
+      const url = `${ALPHA_VANTAGE_BASE_URL}?function=${func}&from_symbol=${from}&to_symbol=${to}${interval ? `&interval=${interval}` : ''}&apikey=${ALPHA_VANTAGE_API_KEY}&outputsize=full`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      // Check for Alpha Vantage API errors
+      if (data['Error Message']) {
+        console.error('Alpha Vantage API Error:', data['Error Message']);
+        setError(`Alpha Vantage API Error: ${data['Error Message']}`);
+        return;
+      }
+      
+      if (data['Note']) {
+        console.warn('Alpha Vantage API Note:', data['Note']);
+        setError('Alpha Vantage rate limit reached. Please wait before requesting historical data.');
+        return;
+      }
+      
+      let timeSeriesData = null;
+      
+      // Handle different response formats
+      if (func === 'FX_DAILY' && data['Time Series FX (Daily)']) {
+        timeSeriesData = data['Time Series FX (Daily)'];
+      } else if (func === 'FX_INTRADAY' && data[`Time Series FX (${interval})`]) {
+        timeSeriesData = data[`Time Series FX (${interval})`];
+      }
+      
+      if (!timeSeriesData) {
+        console.error('No historical data received for', pair, data);
+        // Generate basic chart with current rate as fallback
+        generateFallbackChart(pair);
+        return;
+      }
+      
+      // Convert Alpha Vantage data to our format
+      const historicalPoints = [];
+      const dates = Object.keys(timeSeriesData).sort();
+      
+      // Filter data by date range
+      const filteredDates = dates.filter(date => {
+        const dataDate = new Date(date);
+        return dataDate >= startDate && dataDate <= endDate;
+      });
+      
+      filteredDates.forEach(date => {
+        const dayData = timeSeriesData[date];
+        historicalPoints.push({
+          date: date.split(' ')[0], // Remove time component for daily data
+          open: parseFloat(dayData['1. open']),
+          high: parseFloat(dayData['2. high']),
+          low: parseFloat(dayData['3. low']),
+          close: parseFloat(dayData['4. close']),
+          rate: parseFloat(dayData['4. close']), // for backward compatibility
+          volume: 0, // Alpha Vantage doesn't provide volume for FX
+          change: 0 // Will be calculated below
+        });
+      });
+      
+      // Calculate daily changes
+      for (let i = 1; i < historicalPoints.length; i++) {
+        const current = historicalPoints[i];
+        const previous = historicalPoints[i - 1];
+        current.change = ((current.close - previous.close) / previous.close) * 100;
+      }
+      
+      // Calculate technical indicators on real data
+      const enhancedData = calculateIndicators(historicalPoints);
+      
+      // Generate forecast based on real historical data
+      const forecastData = advancedForecast(enhancedData, forecastDays);
+      
+      // Calculate trend and strength from real data
+      const recentRates = enhancedData.slice(-14).map(d => d.close);
+      const firstRate = recentRates[0];
+      const lastRate = recentRates[recentRates.length - 1];
+      const trend = (lastRate - firstRate) / firstRate;
+      
+      // Calculate support and resistance levels from real data
+      const highs = enhancedData.slice(-30).map(d => d.high);
+      const lows = enhancedData.slice(-30).map(d => d.low);
+      const resistance = highs.sort((a, b) => b - a)[2]; // 3rd highest
+      const support = lows.sort((a, b) => a - b)[2]; // 3rd lowest
+      
+      // Calculate volatility from real returns
+      const returns = enhancedData.slice(-30).map((d, i, arr) => 
+        i > 0 ? Math.log(d.close / arr[i-1].close) : 0
+      ).slice(1);
+      const variance = returns.reduce((sum, r) => sum + r * r, 0) / returns.length;
+      const volatility = Math.sqrt(variance * 252); // annualized
+      
+      // Update state with real data
+      setHistoricalData(prev => ({
+        ...prev,
+        [pair]: enhancedData
+      }));
+      
+      setForecast(prev => ({
+        ...prev,
+        [pair]: {
           data: forecastData,
           trend: trend > 0 ? 'bullish' : 'bearish',
           strength: Math.abs(trend) > 0.02 ? 'strong' : Math.abs(trend) > 0.005 ? 'moderate' : 'weak',
@@ -348,78 +384,207 @@ const FXTracker = () => {
           resistance: resistance,
           volatility: volatility,
           rsi: enhancedData[enhancedData.length - 1]?.rsi
-        };
-      }
-    });
-    
-    setHistoricalData(historical);
-    setForecast(forecasts);
+        }
+      }));
+      
+    } catch (err) {
+      console.error('Error fetching historical data:', err);
+      setError(`Failed to fetch historical data for ${pair}. Showing current rate only.`);
+      generateFallbackChart(pair);
+    }
   };
 
-  // Fetch financial news
+  // Generate a basic chart with current rate when historical data fails
+  const generateFallbackChart = (pair) => {
+    const currentRate = rates[pair];
+    if (!currentRate) return;
+    
+    const fallbackData = [];
+    const endDate = new Date();
+    
+    // Create a simple 30-day chart with current rate
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(endDate);
+      date.setDate(date.getDate() - i);
+      
+      fallbackData.push({
+        date: date.toISOString().split('T')[0],
+        open: currentRate,
+        high: currentRate,
+        low: currentRate,
+        close: currentRate,
+        rate: currentRate,
+        volume: 0,
+        change: 0
+      });
+    }
+    
+    const enhancedData = calculateIndicators(fallbackData);
+    
+    setHistoricalData(prev => ({
+      ...prev,
+      [pair]: enhancedData
+    }));
+    
+    setForecast(prev => ({
+      ...prev,
+      [pair]: {
+        data: [],
+        trend: 'neutral',
+        strength: 'weak',
+        support: currentRate * 0.99,
+        resistance: currentRate * 1.01,
+        volatility: 0.1,
+        rsi: 50
+      }
+    }));
+  };
+
+  // Remove the old generateHistoricalData function and replace with real data fetching
+  const updateAnalysisWithRealData = async () => {
+    if (selectedPair && rates[selectedPair]) {
+      setLoading(true);
+      await fetchHistoricalData(selectedPair);
+      setLoading(false);
+    }
+  };
+
+  // Fetch real financial news from Alpha Vantage
   const fetchNews = async () => {
     try {
-      // Mock news data with clickable URLs (including SA/NZD relevant news)
-      const mockNews = [
-        {
-          id: 1,
-          title: "SARB Keeps Repo Rate Unchanged at 8.25%",
-          source: "News24",
-          time: "1 hour ago",
-          impact: "high",
-          currencies: ["ZAR"],
-          url: "https://www.news24.com/fin24/economy/south-africa/sarb-keeps-repo-rate-unchanged"
-        },
-        {
-          id: 2,
-          title: "RBNZ Signals Cautious Approach to Rate Cuts",
-          source: "NZ Herald",
-          time: "3 hours ago",
-          impact: "high",
-          currencies: ["NZD"],
-          url: "https://www.nzherald.co.nz/business/rbnz-signals-cautious-approach"
-        },
-        {
-          id: 3,
-          title: "Rand Strengthens on Commodity Price Rally",
-          source: "Business Day",
-          time: "4 hours ago",
-          impact: "medium",
-          currencies: ["ZAR"],
-          url: "https://www.businesslive.co.za/bd/markets/currencies/rand-strengthens"
-        },
-        {
-          id: 4,
-          title: "Fed Signals Potential Rate Changes Ahead",
-          source: "Financial Times",
-          time: "5 hours ago",
-          impact: "high",
-          currencies: ["USD"],
-          url: "https://www.ft.com/content/fed-signals-rate-changes"
-        },
-        {
-          id: 5,
-          title: "NZ Employment Data Shows Resilient Labor Market",
-          source: "Stats NZ",
-          time: "6 hours ago",
-          impact: "medium",
-          currencies: ["NZD"],
-          url: "https://www.stats.govt.nz/news/employment-data-resilient"
-        },
-        {
-          id: 6,
-          title: "Gold Price Surge Benefits SA Mining Sector",
-          source: "Mining Weekly",
-          time: "8 hours ago",
-          impact: "medium",
-          currencies: ["ZAR"],
-          url: "https://www.miningweekly.com/article/gold-price-surge-benefits-sa-mining"
-        }
-      ];
+      // Get relevant forex-related news using Alpha Vantage NEWS_SENTIMENT API
+      const forexTickers = 'FOREX:USD,FOREX:EUR,FOREX:GBP,FOREX:JPY,FOREX:AUD,FOREX:CAD,FOREX:NZD,FOREX:CHF';
+      const url = `${ALPHA_VANTAGE_BASE_URL}?function=NEWS_SENTIMENT&tickers=${forexTickers}&limit=50&apikey=${ALPHA_VANTAGE_API_KEY}`;
       
-      setNews(mockNews);
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.feed && Array.isArray(data.feed)) {
+        // Transform Alpha Vantage news data to our format
+        const newsItems = data.feed.slice(0, 6).map((article, index) => {
+          // Extract relevant currencies from ticker sentiment
+          const relevantCurrencies = [];
+          if (article.ticker_sentiment) {
+            article.ticker_sentiment.forEach(ticker => {
+              if (ticker.ticker.startsWith('FOREX:')) {
+                const currency = ticker.ticker.replace('FOREX:', '');
+                if (currencies.includes(currency)) {
+                  relevantCurrencies.push(currency);
+                }
+              }
+            });
+          }
+          
+          // Determine impact level based on overall sentiment score
+          let impact = 'low';
+          if (article.overall_sentiment_score) {
+            const score = Math.abs(parseFloat(article.overall_sentiment_score));
+            if (score > 0.3) impact = 'high';
+            else if (score > 0.15) impact = 'medium';
+          }
+          
+          // Format time
+          const timePublished = new Date(article.time_published);
+          const now = new Date();
+          const hoursAgo = Math.floor((now - timePublished) / (1000 * 60 * 60));
+          const timeString = hoursAgo < 1 ? 'Less than 1 hour ago' : 
+                           hoursAgo < 24 ? `${hoursAgo} hours ago` : 
+                           `${Math.floor(hoursAgo / 24)} days ago`;
+          
+          return {
+            id: index + 1,
+            title: article.title,
+            summary: article.summary,
+            source: article.source,
+            time: timeString,
+            impact: impact,
+            currencies: relevantCurrencies.length > 0 ? relevantCurrencies.slice(0, 3) : ['USD'], // Default to USD if no specific currencies
+            url: article.url,
+            sentiment: article.overall_sentiment_label,
+            sentimentScore: article.overall_sentiment_score
+          };
+        });
+        
+        setNews(newsItems);
+      } else {
+        console.warn('No news data received from Alpha Vantage');
+        // Fallback to general financial topics if no forex-specific news
+        fetchGeneralFinancialNews();
+      }
     } catch (err) {
-      console.error('Error fetching news:', err);
+      console.error('Error fetching news from Alpha Vantage:', err);
+      // Fallback to general financial news
+      fetchGeneralFinancialNews();
+    }
+  };
+
+  // Fallback function to get general financial news
+  const fetchGeneralFinancialNews = async () => {
+    try {
+      // Get broader financial news including central bank topics
+      const generalUrl = `${ALPHA_VANTAGE_BASE_URL}?function=NEWS_SENTIMENT&topics=finance,economy&limit=20&apikey=${ALPHA_VANTAGE_API_KEY}`;
+      
+      const response = await fetch(generalUrl);
+      const data = await response.json();
+      
+      if (data.feed && Array.isArray(data.feed)) {
+        const newsItems = data.feed.slice(0, 6).map((article, index) => {
+          // Determine relevant currencies based on content
+          const relevantCurrencies = [];
+          const content = (article.title + ' ' + article.summary).toLowerCase();
+          
+          if (content.includes('fed') || content.includes('federal reserve') || content.includes('dollar')) {
+            relevantCurrencies.push('USD');
+          }
+          if (content.includes('ecb') || content.includes('european central bank') || content.includes('euro')) {
+            relevantCurrencies.push('EUR');
+          }
+          if (content.includes('boe') || content.includes('bank of england') || content.includes('pound')) {
+            relevantCurrencies.push('GBP');
+          }
+          if (content.includes('boj') || content.includes('bank of japan') || content.includes('yen')) {
+            relevantCurrencies.push('JPY');
+          }
+          if (content.includes('rbnz') || content.includes('reserve bank of new zealand') || content.includes('new zealand')) {
+            relevantCurrencies.push('NZD');
+          }
+          if (content.includes('sarb') || content.includes('south african reserve bank') || content.includes('rand')) {
+            relevantCurrencies.push('ZAR');
+          }
+          
+          let impact = 'low';
+          if (article.overall_sentiment_score) {
+            const score = Math.abs(parseFloat(article.overall_sentiment_score));
+            if (score > 0.3) impact = 'high';
+            else if (score > 0.15) impact = 'medium';
+          }
+          
+          const timePublished = new Date(article.time_published);
+          const now = new Date();
+          const hoursAgo = Math.floor((now - timePublished) / (1000 * 60 * 60));
+          const timeString = hoursAgo < 1 ? 'Less than 1 hour ago' : 
+                           hoursAgo < 24 ? `${hoursAgo} hours ago` : 
+                           `${Math.floor(hoursAgo / 24)} days ago`;
+          
+          return {
+            id: index + 1,
+            title: article.title,
+            summary: article.summary,
+            source: article.source,
+            time: timeString,
+            impact: impact,
+            currencies: relevantCurrencies.length > 0 ? relevantCurrencies.slice(0, 3) : ['USD'],
+            url: article.url,
+            sentiment: article.overall_sentiment_label,
+            sentimentScore: article.overall_sentiment_score
+          };
+        });
+        
+        setNews(newsItems);
+      }
+    } catch (err) {
+      console.error('Error fetching general financial news:', err);
+      setNews([]); // Empty news array if all fails
     }
   };
 
@@ -642,7 +807,7 @@ const FXTracker = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading FX data...</p>
+          <p className="text-gray-600">Loading real-time FX data and market news...</p>
         </div>
       </div>
     );
@@ -658,7 +823,7 @@ const FXTracker = () => {
               <Globe className="h-8 w-8 text-blue-600" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">FX Tracker Pro</h1>
-                <p className="text-sm text-gray-500">Real-time rates & advanced forecasting</p>
+                <p className="text-sm text-gray-500">Real-time rates, historical data & market news • Powered by ExchangeRate-API & Alpha Vantage</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -683,7 +848,9 @@ const FXTracker = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
             <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
-            <p className="text-red-800">{error}</p>
+            <div>
+              <p className="text-red-800">{error}</p>
+            </div>
           </div>
         </div>
       )}
@@ -752,43 +919,43 @@ const FXTracker = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Date Range */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">Start Date</label>
                   <input
                     type="date"
                     value={dateRange.start}
                     onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">End Date</label>
                   <input
                     type="date"
                     value={dateRange.end}
                     onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Forecast Days</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">Forecast Days</label>
                   <input
                     type="number"
                     min="1"
                     max="90"
                     value={forecastDays}
                     onChange={(e) => setForecastDays(parseInt(e.target.value))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Chart Type</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">Chart Type</label>
                   <select
                     value={chartType}
                     onChange={(e) => setChartType(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   >
                     <option value="line">Line Chart</option>
                     <option value="candlestick">Candlestick</option>
@@ -798,7 +965,7 @@ const FXTracker = () => {
               
               {/* Technical Indicators */}
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Technical Indicators</label>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Technical Indicators</label>
                 <div className="flex flex-wrap gap-4">
                   <label className="flex items-center">
                     <input
@@ -807,7 +974,7 @@ const FXTracker = () => {
                       onChange={(e) => setIndicators(prev => ({ ...prev, sma5: e.target.checked }))}
                       className="mr-2"
                     />
-                    <span className="text-sm text-gray-700">SMA 5</span>
+                    <span className="text-sm font-medium text-gray-800">SMA 5</span>
                   </label>
                   
                   <label className="flex items-center">
@@ -817,7 +984,7 @@ const FXTracker = () => {
                       onChange={(e) => setIndicators(prev => ({ ...prev, sma20: e.target.checked }))}
                       className="mr-2"
                     />
-                    <span className="text-sm text-gray-700">SMA 20</span>
+                    <span className="text-sm font-medium text-gray-800">SMA 20</span>
                   </label>
                   
                   <label className="flex items-center">
@@ -827,7 +994,7 @@ const FXTracker = () => {
                       onChange={(e) => setIndicators(prev => ({ ...prev, bollinger: e.target.checked }))}
                       className="mr-2"
                     />
-                    <span className="text-sm text-gray-700">Bollinger Bands</span>
+                    <span className="text-sm font-medium text-gray-800">Bollinger Bands</span>
                   </label>
                   
                   <label className="flex items-center">
@@ -837,17 +1004,18 @@ const FXTracker = () => {
                       onChange={(e) => setIndicators(prev => ({ ...prev, rsi: e.target.checked }))}
                       className="mr-2"
                     />
-                    <span className="text-sm text-gray-700">RSI</span>
+                    <span className="text-sm font-medium text-gray-800">RSI</span>
                   </label>
                 </div>
               </div>
               
               <div className="mt-4">
                 <button
-                  onClick={() => generateHistoricalData(rates)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  onClick={updateAnalysisWithRealData}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  Update Analysis
+                  {loading ? 'Fetching Real Data...' : 'Update Analysis'}
                 </button>
               </div>
             </div>
@@ -867,12 +1035,13 @@ const FXTracker = () => {
                 </button>
               </div>
 
-              {historicalData[selectedPair] && (
+              {historicalData[selectedPair] ? (
                 <div className="space-y-6">
                   {/* Main Price Chart */}
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 mb-3">
-                      Historical Price Movement ({chartType === 'candlestick' ? 'OHLC' : 'Line'})
+                      Real Historical Price Data ({chartType === 'candlestick' ? 'OHLC' : 'Line'})
+                      <span className="text-sm text-green-600 font-normal ml-2">• Historical data from Alpha Vantage</span>
                     </h3>
                     <div className="h-80">
                       {chartType === 'candlestick' ? (
@@ -1055,7 +1224,7 @@ const FXTracker = () => {
                         </ResponsiveContainer>
                       </div>
                       <div className="mt-2 text-sm text-gray-600">
-                        <p>Forecast uses advanced exponential smoothing with trend analysis, seasonal adjustments, and mean reversion components.</p>
+                        <p>Forecast based on real historical data using advanced exponential smoothing with trend analysis, seasonal adjustments, and mean reversion components.</p>
                       </div>
                     </div>
                   )}
@@ -1102,6 +1271,12 @@ const FXTracker = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Activity className="h-12 w-12 animate-pulse mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-600">Loading historical data from Alpha Vantage...</p>
+                  <p className="text-sm text-gray-500 mt-2">If historical data is unavailable, current rates will be displayed</p>
                 </div>
               )}
             </div>
@@ -1227,32 +1402,50 @@ const FXTracker = () => {
           {/* News Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Newspaper className="h-5 w-5 mr-2" />
                 Market News
+                <span className="text-xs text-green-600 ml-2 font-normal">• Live from Alpha Vantage</span>
               </h2>
               
               <div className="space-y-4">
-                {news.map(item => (
+                {news.length > 0 ? news.map(item => (
                   <div 
                     key={item.id} 
                     onClick={() => window.open(item.url, '_blank')}
                     className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        item.impact === 'high' ? 'bg-red-100 text-red-800' :
-                        item.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {item.impact.toUpperCase()}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          item.impact === 'high' ? 'bg-red-100 text-red-800' :
+                          item.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {item.impact.toUpperCase()}
+                        </span>
+                        {item.sentiment && (
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            item.sentiment === 'Bullish' ? 'bg-green-100 text-green-800' :
+                            item.sentiment === 'Bearish' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {item.sentiment}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs text-gray-500">{item.time}</span>
                     </div>
                     
                     <h3 className="font-medium text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
                       {item.title}
                     </h3>
+                    
+                    {item.summary && (
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        {item.summary}
+                      </p>
+                    )}
                     
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">{item.source}</span>
@@ -1265,14 +1458,19 @@ const FXTracker = () => {
                       </div>
                     </div>
                     
-                    <div className="mt-2 text-xs text-gray-500 flex items-center">
+                    <div className="mt-2 text-xs text-blue-600 flex items-center">
                       <span>Click to read full article</span>
                       <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-8">
+                    <Newspaper className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-gray-600">Loading real-time financial news...</p>
+                  </div>
+                )}
               </div>
               
               <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -1287,6 +1485,13 @@ const FXTracker = () => {
                   <div>• NZ GDP Release - Sep 19</div>
                 </div>
               </div>
+              
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700">
+                  📈 Real-time financial news powered by Alpha Vantage's AI sentiment analysis. 
+                  News articles include sentiment scores to help understand market impact.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1296,7 +1501,7 @@ const FXTracker = () => {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="text-center text-sm text-gray-500">
-            <p>Data provided by exchangerate-api.com • For educational purposes only</p>
+            <p>Real-time rates from ExchangeRate-API • Historical data & news from Alpha Vantage • For educational purposes only</p>
             <p className="mt-1">Not financial advice • Always verify with official sources</p>
           </div>
         </div>
