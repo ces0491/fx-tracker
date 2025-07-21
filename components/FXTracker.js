@@ -128,43 +128,89 @@ const FXTracker = () => {
   // REAL API CALLS - Fetch live exchange rates
   const fetchRates = useCallback(async () => {
     setLoadingState(prev => ({ ...prev, rates: 'loading' }));
-    try {
-      const response = await fetch('https://api.exchangerate.host/latest?base=USD');
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const data = await response.json();
-      if (!data.success && data.success !== undefined) throw new Error('API returned error');
-      
-      // Convert to currency pairs format
-      const pairRates = {};
-      const baseRates = data.rates;
-      
-      // Generate all possible pairs from the suggested pairs
-      suggestedPairs.forEach(pair => {
-        const [base, quote] = pair.split('/');
-        if (baseRates[base] && baseRates[quote]) {
-          // Calculate cross rate: base/quote = (USD/quote) / (USD/base)
-          pairRates[pair] = baseRates[quote] / baseRates[base];
-        } else if (base === 'USD' && baseRates[quote]) {
-          pairRates[pair] = baseRates[quote];
-        } else if (quote === 'USD' && baseRates[base]) {
-          pairRates[pair] = 1 / baseRates[base];
-        }
-      });
-      
-      setRates(pairRates);
-      setLastUpdate(new Date());
-      setLoadingState(prev => ({ ...prev, rates: 'success' }));
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.rates;
-        return newErrors;
-      });
-    } catch (error) {
-      console.error('Failed to fetch rates:', error);
-      setLoadingState(prev => ({ ...prev, rates: 'error' }));
-      setErrors(prev => ({ ...prev, rates: `Failed to fetch live rates: ${error.message}` }));
+    
+    // Try multiple APIs in order of preference
+    const apis = [
+      // Free API that supports CORS
+      {
+        url: 'https://api.fixer.io/latest?access_key=YOUR_API_KEY',
+        name: 'Fixer.io',
+        parse: (data) => data.rates,
+        needsKey: true
+      },
+      // CORS proxy with exchangerate.host
+      {
+        url: 'https://api.allorigins.win/raw?url=https://api.exchangerate.host/latest?base=USD',
+        name: 'ExchangeRate.host (via CORS proxy)',
+        parse: (data) => typeof data === 'string' ? JSON.parse(data).rates : data.rates,
+        needsKey: false
+      },
+      // Another free option
+      {
+        url: 'https://api.exchangerate-api.com/v4/latest/USD',
+        name: 'ExchangeRate-API',
+        parse: (data) => data.rates,
+        needsKey: false
+      }
+    ];
+
+    for (const api of apis) {
+      try {
+        // Skip APIs that need keys for now
+        if (api.needsKey) continue;
+        
+        console.log(`Trying ${api.name}...`);
+        const response = await fetch(api.url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const data = await response.json();
+        if (!data || (!data.rates && !api.parse)) throw new Error('Invalid response format');
+        
+        const baseRates = api.parse ? api.parse(data) : data.rates;
+        if (!baseRates || typeof baseRates !== 'object') throw new Error('No rates data');
+        
+        // Convert to currency pairs format
+        const pairRates = {};
+        
+        // Generate all possible pairs from the suggested pairs
+        suggestedPairs.forEach(pair => {
+          const [base, quote] = pair.split('/');
+          if (baseRates[base] && baseRates[quote]) {
+            // Calculate cross rate: base/quote = (USD/quote) / (USD/base)
+            pairRates[pair] = baseRates[quote] / baseRates[base];
+          } else if (base === 'USD' && baseRates[quote]) {
+            pairRates[pair] = baseRates[quote];
+          } else if (quote === 'USD' && baseRates[base]) {
+            pairRates[pair] = 1 / baseRates[base];
+          }
+        });
+        
+        if (Object.keys(pairRates).length === 0) throw new Error('No valid currency pairs found');
+        
+        setRates(pairRates);
+        setLastUpdate(new Date());
+        setLoadingState(prev => ({ ...prev, rates: 'success' }));
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.rates;
+          return newErrors;
+        });
+        
+        console.log(`Successfully loaded rates from ${api.name}`);
+        return; // Success, exit the loop
+        
+      } catch (error) {
+        console.error(`Failed to fetch from ${api.name}:`, error);
+        continue; // Try next API
+      }
     }
+    
+    // If all APIs failed
+    setLoadingState(prev => ({ ...prev, rates: 'error' }));
+    setErrors(prev => ({ 
+      ...prev, 
+      rates: 'All forex APIs failed. This may be due to CORS restrictions or API limits. Consider using a backend server for production.'
+    }));
   }, [suggestedPairs]);
 
   // REAL API CALLS - Fetch historical data
