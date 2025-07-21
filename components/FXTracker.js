@@ -365,8 +365,52 @@ const FXTracker = () => {
     return combinedData;
   }, [historicalData, selectedPair, forecast]);
 
+  // Calculate dynamic Y-axis domain for better chart scaling
+  const calculateChartDomain = useCallback((data) => {
+    if (!data || data.length === 0) return ['auto', 'auto'];
+    
+    // Get all relevant price values
+    const prices = [];
+    data.forEach(item => {
+      if (item.close) prices.push(item.close);
+      if (item.rate) prices.push(item.rate);
+      if (item.high) prices.push(item.high);
+      if (item.low) prices.push(item.low);
+      if (item.open) prices.push(item.open);
+      // Include technical indicators if enabled
+      if (indicators.sma5 && item.sma5) prices.push(item.sma5);
+      if (indicators.sma20 && item.sma20) prices.push(item.sma20);
+      if (indicators.bollinger && item.bollingerUpper) prices.push(item.bollingerUpper);
+      if (indicators.bollinger && item.bollingerLower) prices.push(item.bollingerLower);
+      // Include forecast confidence bands
+      if (item.upperBound) prices.push(item.upperBound);
+      if (item.lowerBound) prices.push(item.lowerBound);
+    });
+    
+    if (prices.length === 0) return ['auto', 'auto'];
+    
+    const minPrice = Math.min(...prices.filter(p => p && !isNaN(p)));
+    const maxPrice = Math.max(...prices.filter(p => p && !isNaN(p)));
+    
+    // Add 5% padding on each side for better visualization
+    const range = maxPrice - minPrice;
+    const padding = Math.max(range * 0.05, range * 0.02); // At least 2% padding
+    
+    const domainMin = minPrice - padding;
+    const domainMax = maxPrice + padding;
+    
+    // Ensure domain is reasonable
+    if (domainMin === domainMax) {
+      return [domainMin * 0.995, domainMax * 1.005];
+    }
+    
+    return [domainMin, domainMax];
+  }, [indicators]);
+
   // Enhanced Line Chart with Forecast Integration
   const IntegratedLineChart = useCallback(({ data }) => {
+    const chartDomain = calculateChartDomain(data);
+    
     return (
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
@@ -377,7 +421,7 @@ const FXTracker = () => {
             stroke="#666"
           />
           <YAxis 
-            domain={['dataMin - dataMin*0.002', 'dataMax + dataMax*0.002']}
+            domain={chartDomain}
             tickFormatter={formatRate}
             stroke="#666"
           />
@@ -499,10 +543,12 @@ const FXTracker = () => {
         </LineChart>
       </ResponsiveContainer>
     );
-  }, [indicators, formatDateForChart, formatRate, CustomTooltip, forecast, selectedPair]);
+  }, [indicators, formatDateForChart, formatRate, CustomTooltip, forecast, selectedPair, calculateChartDomain]);
 
   // Fixed Candlestick Chart Component
   const CandlestickChart = useCallback(({ data }) => {
+    const chartDomain = calculateChartDomain(data);
+    
     return (
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
@@ -513,7 +559,7 @@ const FXTracker = () => {
             stroke="#666"
           />
           <YAxis 
-            domain={['dataMin - dataMin*0.002', 'dataMax + dataMax*0.002']}
+            domain={chartDomain}
             tickFormatter={formatRate}
             stroke="#666"
           />
@@ -608,7 +654,7 @@ const FXTracker = () => {
         </LineChart>
       </ResponsiveContainer>
     );
-  }, [indicators, formatDateForChart, formatRate, CustomTooltip]);
+  }, [indicators, formatDateForChart, formatRate, CustomTooltip, calculateChartDomain]);
 
   // FIXED: Separate fetch functions to avoid circular dependency
   // Fetch historical data through secure backend
@@ -1230,8 +1276,27 @@ const FXTracker = () => {
                             <YAxis 
                               domain={[0, 100]}
                               stroke="#666"
+                              tickCount={6}
                             />
-                            <Tooltip content={<CustomTooltip />} />
+                            <Tooltip 
+                              content={({ active, payload, label }) => {
+                                if (active && payload && payload.length) {
+                                  return (
+                                    <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
+                                      <p className="font-medium">{formatDateForChart(label)}</p>
+                                      <p style={{ color: '#8b5cf6' }}>
+                                        RSI: {payload[0].value ? payload[0].value.toFixed(2) : '--'}
+                                      </p>
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        {payload[0].value > 70 ? 'Overbought' : 
+                                         payload[0].value < 30 ? 'Oversold' : 'Neutral'}
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
                             <Line 
                               type="monotone" 
                               dataKey="rsi" 
@@ -1240,9 +1305,9 @@ const FXTracker = () => {
                               dot={false}
                               name="RSI"
                             />
-                            <ReferenceLine y={CONFIG.RSI.OVERBOUGHT} stroke="#ef4444" strokeDasharray="2 2" label="Overbought" />
-                            <ReferenceLine y={CONFIG.RSI.OVERSOLD} stroke="#10b981" strokeDasharray="2 2" label="Oversold" />
-                            <ReferenceLine y={CONFIG.RSI.NEUTRAL} stroke="#6b7280" strokeDasharray="1 1" label="Neutral" />
+                            <ReferenceLine y={CONFIG.RSI.OVERBOUGHT} stroke="#ef4444" strokeDasharray="2 2" label="Overbought (70)" />
+                            <ReferenceLine y={CONFIG.RSI.OVERSOLD} stroke="#10b981" strokeDasharray="2 2" label="Oversold (30)" />
+                            <ReferenceLine y={CONFIG.RSI.NEUTRAL} stroke="#6b7280" strokeDasharray="1 1" label="Neutral (50)" />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
