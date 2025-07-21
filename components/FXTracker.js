@@ -32,47 +32,52 @@ const FXTracker = () => {
   });
 
   // Configuration constants
-  const CONFIG = useMemo(() => ({
-    // API endpoints - these should point to your backend API routes
-    RATES_ENDPOINT: process.env.REACT_APP_API_BASE_URL + '/api/rates' || '/api/rates',
-    HISTORICAL_ENDPOINT: process.env.REACT_APP_API_BASE_URL + '/api/historical' || '/api/historical',
-    NEWS_ENDPOINT: process.env.REACT_APP_API_BASE_URL + '/api/news' || '/api/news',
-    EVENTS_ENDPOINT: process.env.REACT_APP_API_BASE_URL + '/api/events' || '/api/events',
+  const CONFIG = useMemo(() => {
+    // Properly handle environment variables for Next.js
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  
+    return {
+      // API endpoints - Fixed URL construction
+      RATES_ENDPOINT: `${API_BASE_URL}/api/rates`,
+      HISTORICAL_ENDPOINT: `${API_BASE_URL}/api/historical`,
+      NEWS_ENDPOINT: `${API_BASE_URL}/api/news`,
+      EVENTS_ENDPOINT: `${API_BASE_URL}/api/events`,
     
-    // Chart settings
-    CHART_HEIGHT: {
-      main: 320,
-      rsi: 192,
-      forecast: 256
-    },
+      // Chart settings
+      CHART_HEIGHT: {
+        main: 320,
+        rsi: 192,
+        forecast: 256
+      },
     
-    // Technical indicator periods
-    INDICATORS: {
-      SMA_SHORT: 5,
-      SMA_LONG: 20,
-      RSI_PERIOD: 14,
-      BOLLINGER_PERIOD: 20,
-      BOLLINGER_MULTIPLIER: 2
-    },
+      // Technical indicator periods
+      INDICATORS: {
+        SMA_SHORT: 5,
+        SMA_LONG: 20,
+        RSI_PERIOD: 14,
+        BOLLINGER_PERIOD: 20,
+        BOLLINGER_MULTIPLIER: 2
+      },
     
-    // Volatility thresholds
-    VOLATILITY: {
-      HIGH: 0.2,
-      MEDIUM: 0.1
-    },
+      // Volatility thresholds
+      VOLATILITY: {
+        HIGH: 0.2,
+        MEDIUM: 0.1
+      },
     
-    // RSI thresholds
-    RSI: {
-      OVERBOUGHT: 70,
-      OVERSOLD: 30,
-      NEUTRAL: 50
-    },
+      // RSI thresholds
+      RSI: {
+        OVERBOUGHT: 70,
+        OVERSOLD: 30,
+        NEUTRAL: 50
+      },
     
-    // Rate limits and intervals
-    UPDATE_INTERVAL: 5 * 60 * 1000, // 5 minutes
-    RETRY_DELAY: 1000, // 1 second
-    MAX_RETRIES: 3
-  }), []);
+      // Rate limits and intervals
+      UPDATE_INTERVAL: 5 * 60 * 1000, // 5 minutes
+      RETRY_DELAY: 1000, // 1 second
+      MAX_RETRIES: 3
+    };
+  }, []);
 
   // Available currencies
   const currencies = useMemo(() => [
@@ -103,19 +108,64 @@ const FXTracker = () => {
   // Secure API caller - routes through backend
   const secureApiCall = useCallback(async (endpoint, params = {}) => {
     try {
-      const url = new URL(endpoint, window.location.origin);
-      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+      // Handle both relative and absolute URLs
+      let url;
       
-      const response = await fetch(url);
+      if (endpoint.startsWith('http')) {
+        // Already a full URL
+        url = new URL(endpoint);
+      } else {
+        // Relative URL - construct properly
+        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        url = new URL(cleanEndpoint, baseUrl);
+      }
+      
+      // Add query parameters
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== null) {
+          url.searchParams.append(key, params[key]);
+        }
+      });
+      
+      console.log('🔗 API Call:', url.toString()); // Debug log
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      console.log('✅ API Response received'); // Debug log
+      
+      return data;
     } catch (error) {
+      console.error('❌ API Error:', error);
       throw new Error(`API call failed: ${error.message}`);
     }
   }, []);
+
+// Debug component for development (add this temporarily)
+const DebugInfo = () => {
+  if (process.env.NODE_ENV !== 'development') return null;
+  
+  return (
+    <div className="fixed top-0 right-0 bg-yellow-100 border border-yellow-400 p-4 m-4 rounded-lg text-xs z-50 max-w-sm">
+      <h3 className="font-bold text-yellow-800 mb-2">🐛 Environment Debug</h3>
+      <div className="space-y-1 text-yellow-700">
+        <div><strong>BASE_URL:</strong> {process.env.NEXT_PUBLIC_API_BASE_URL || 'undefined ❌'}</div>
+        <div><strong>Rates API:</strong> {CONFIG.RATES_ENDPOINT}</div>
+        <div><strong>Origin:</strong> {typeof window !== 'undefined' ? window.location.origin : 'server'}</div>
+      </div>
+    </div>
+  );
+};
 
   // Fetch real-time rates through secure backend endpoint
   const fetchRates = useCallback(async (retries = 0) => {

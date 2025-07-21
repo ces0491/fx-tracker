@@ -1,6 +1,6 @@
-# 🌍 FX Tracker Pro
+# 🌍 FX Tracker
 
-A professional foreign exchange tracking application built with Next.js, featuring real-time currency rates, historical data analysis, technical indicators, and market news.
+A foreign exchange tracking application built with Next.js, featuring real-time currency rates, historical data analysis, technical indicators, and market news.
 
 ![FX Tracker Pro](https://img.shields.io/badge/Next.js-15.4.2-black) ![React](https://img.shields.io/badge/React-18.x-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-CSS-38B2AC) ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000)
 
@@ -12,7 +12,7 @@ A professional foreign exchange tracking application built with Next.js, featuri
 - **5-minute Updates**: Automated refresh every 5 minutes
 - **Last Update Tracking**: Visual indication of data freshness
 
-### 📊 Advanced Analytics
+### 📊 Analytics
 - **Historical Charts**: Interactive price history with customizable date ranges
 - **Technical Indicators**: 
   - Simple Moving Averages (5-day, 20-day)
@@ -20,9 +20,9 @@ A professional foreign exchange tracking application built with Next.js, featuri
   - RSI (Relative Strength Index)
   - Support/Resistance levels
 - **Multiple Chart Types**: Line charts and candlestick views
-- **Forecast Engine**: 30-90 day statistical forecasting using exponential smoothing
+- **Forecasting**: 30-90 day statistical forecasting using exponential smoothing
 
-### 📈 Professional Tools
+### 📈 Tools
 - **Popular Pairs**: Pre-configured currency pairs (NZD/ZAR, EUR/USD, etc.)
 - **Custom Pair Selection**: Choose any base and quote currency combination
 - **Data Export**: Download historical data and indicators as CSV
@@ -39,10 +39,6 @@ A professional foreign exchange tracking application built with Next.js, featuri
 - **Environment Variable Protection**: API keys never exposed to frontend
 - **Error Handling**: Comprehensive error handling with retry logic
 - **Responsive Design**: Mobile-first design with Tailwind CSS
-
-## 🚀 Live Demo
-
-**[View Live Application](https://your-vercel-app.vercel.app)**
 
 ## 🛠️ Tech Stack
 
@@ -287,67 +283,3 @@ try {
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📞 Support
-
-### Getting Help
-
-- 📧 **Email**: support@fxtrackerpro.com
-- 💬 **Discord**: [Join our community](https://discord.gg/fxtrackerpro)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/yourusername/fx-tracker-pro/issues)
-- 📖 **Documentation**: [Wiki](https://github.com/yourusername/fx-tracker-pro/wiki)
-
-### FAQ
-
-**Q: Why do I get "API rate limit exceeded" errors?**
-A: Free API tiers have limited requests. Consider upgrading to a paid plan or implementing caching.
-
-**Q: Can I add more currencies?**
-A: Yes! Edit the `currencies` array in the FXTracker component.
-
-**Q: How accurate are the forecasts?**
-A: Forecasts are statistical models for educational purposes only. Not financial advice.
-
-## 🔮 Roadmap
-
-### Version 2.0 (Q2 2025)
-- [ ] User authentication and portfolios
-- [ ] Price alerts and notifications
-- [ ] Advanced charting with TradingView
-- [ ] Historical backtesting
-- [ ] Mobile app (React Native)
-
-### Version 1.5 (Q1 2025)
-- [ ] More technical indicators (MACD, Stochastic)
-- [ ] Economic calendar integration
-- [ ] Dark mode support
-- [ ] PDF report generation
-- [ ] API rate limiting dashboard
-
-## 🎯 Use Cases
-
-### For Individuals
-- **Travelers**: Check exchange rates before trips
-- **Expats**: Monitor home currency vs local currency
-- **Investors**: Track forex investments and trends
-- **Students**: Learn about foreign exchange markets
-
-### For Businesses
-- **Import/Export**: Monitor currency exposure
-- **E-commerce**: Track international payment rates
-- **Financial Services**: White-label forex tracking
-- **Education**: Teaching forex fundamentals
-
-## 🏆 Acknowledgments
-
-- **ExchangeRate-API** for reliable real-time data
-- **Alpha Vantage** for comprehensive financial data
-- **Vercel** for seamless deployment
-- **Tailwind CSS** for beautiful styling
-- **Recharts** for powerful data visualization
-
----
-
-**⭐ If you find this project helpful, please give it a star on GitHub!**
-
-Built with ❤️ for the global financial community.
