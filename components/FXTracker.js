@@ -24,7 +24,7 @@ const FXTracker = () => {
   const [errors, setErrors] = useState({});
   const [lastUpdate, setLastUpdate] = useState(null);
   const [retryCount, setRetryCount] = useState({});
-  const [connectionStatus, setConnectionStatus] = useState('unknown'); // 'online', 'offline', 'unknown'
+  const [connectionStatus, setConnectionStatus] = useState('online'); // Always online in demo
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [stableLoadingStates, setStableLoadingStates] = useState({});
 
@@ -50,19 +50,6 @@ const FXTracker = () => {
 
   // Configuration constants
   const CONFIG = useMemo(() => ({
-    API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '',
-    RATES_ENDPOINT: '/api/rates',
-    HISTORICAL_ENDPOINT: '/api/historical',
-    NEWS_ENDPOINT: '/api/news',
-    EVENTS_ENDPOINT: '/api/events',
-    
-    TIMEOUTS: {
-      RATES: 10000, // 10 seconds
-      HISTORICAL: 30000, // 30 seconds
-      NEWS: 15000, // 15 seconds
-      EVENTS: 10000 // 10 seconds
-    },
-    
     CHART_HEIGHT: {
       main: 300,
       rsi: 180,
@@ -107,6 +94,103 @@ const FXTracker = () => {
     'USD/KES', 'EUR/KES', 'GBP/KES', 'KES/ZAR', 'USD/NGN', 'EUR/NGN'
   ], []);
 
+  // Sample exchange rates - realistic values
+  const sampleRatesData = useMemo(() => ({
+    'NZD/ZAR': 10.8542,
+    'NZD/USD': 0.5823,
+    'USD/ZAR': 18.6420,
+    'EUR/ZAR': 19.8760,
+    'GBP/ZAR': 23.1240,
+    'AUD/NZD': 1.0892,
+    'EUR/USD': 1.0654,
+    'GBP/USD': 1.2401,
+    'USD/JPY': 155.42,
+    'AUD/USD': 0.6344,
+    'USD/CAD': 1.4387,
+    'EUR/GBP': 0.8591,
+    'USD/KES': 129.45,
+    'EUR/KES': 137.89,
+    'GBP/KES': 160.52,
+    'KES/ZAR': 0.1441,
+    'USD/NGN': 1547.80,
+    'EUR/NGN': 1649.23
+  }), []);
+
+  // Sample news data
+  const sampleNewsData = useMemo(() => [
+    {
+      id: 1,
+      title: "Central Bank Signals Interest Rate Changes Ahead",
+      summary: "Recent policy statements indicate potential shifts in monetary policy affecting major currency valuations across global markets.",
+      source: "Financial Times",
+      time: "2 hours ago",
+      impact: "high",
+      sentiment: "Neutral",
+      currencies: ["USD", "EUR"],
+      url: "#"
+    },
+    {
+      id: 2,
+      title: "Commodity Prices Surge Impacts Emerging Market Currencies",
+      summary: "Rising commodity prices boost resource-dependent currencies while creating pressure on commodity-importing nations.",
+      source: "Reuters",
+      time: "4 hours ago",
+      impact: "medium",
+      sentiment: "Bullish",
+      currencies: ["ZAR", "AUD"],
+      url: "#"
+    },
+    {
+      id: 3,
+      title: "Trade Relations Development Affects Cross-Currency Volatility",
+      summary: "Ongoing trade discussions create uncertainty in major currency pairs, particularly affecting emerging market currencies.",
+      source: "Bloomberg",
+      time: "6 hours ago",
+      impact: "medium",
+      sentiment: "Bearish",
+      currencies: ["USD", "CNY"],
+      url: "#"
+    },
+    {
+      id: 4,
+      title: "Economic Data Releases Show Mixed Global Growth Signals",
+      summary: "Latest economic indicators reveal divergent growth patterns across major economies, influencing currency strength expectations.",
+      source: "MarketWatch",
+      time: "8 hours ago",
+      impact: "low",
+      sentiment: "Neutral",
+      currencies: ["EUR", "JPY"],
+      url: "#"
+    }
+  ], []);
+
+  // Sample events data
+  const sampleEventsData = useMemo(() => {
+    const today = new Date();
+    return [
+      {
+        title: "Federal Reserve Interest Rate Decision",
+        date: new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        impact: "high"
+      },
+      {
+        title: "European Central Bank Policy Meeting",
+        date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        impact: "high"
+      },
+      {
+        title: "US Employment Data Release",
+        date: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        impact: "medium"
+      },
+      {
+        title: "UK GDP Quarterly Report",
+        date: new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+        impact: "medium"
+      }
+    ];
+  }, []);
+
   // Utility functions
   const formatRate = useCallback((rate) => {
     if (!rate || isNaN(rate) || rate === undefined || rate === null) return '--';
@@ -144,54 +228,45 @@ const FXTracker = () => {
     return names[code] || code;
   }, []);
 
-  // Enhanced API call with proper error handling and timeouts
-  const makeApiCall = useCallback(async (endpoint, params = {}, timeout = 10000) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+  // Generate realistic historical data
+  const generateHistoricalData = useCallback((pair, days = 90) => {
+    const baseRate = sampleRatesData[pair] || 1.0;
+    const data = [];
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    let currentRate = baseRate * (0.95 + Math.random() * 0.1); // Start with some variation
     
-    try {
-      let url;
-      if (endpoint.startsWith('http')) {
-        url = new URL(endpoint);
-      } else {
-        const baseUrl = CONFIG.API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-        url = new URL(cleanEndpoint, baseUrl);
-      }
+    for (let i = 0; i < days; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
       
-      Object.keys(params).forEach(key => {
-        if (params[key] !== undefined && params[key] !== null) {
-          url.searchParams.append(key, params[key]);
-        }
+      // Add realistic daily volatility with trending
+      const dailyChange = (Math.random() - 0.5) * 0.03; // ±1.5% daily volatility
+      const trendFactor = Math.sin(i / 25) * 0.0008; // Longer-term trend
+      const meanReversion = (baseRate - currentRate) * 0.001; // Mean reversion
+      
+      currentRate = currentRate * (1 + dailyChange + trendFactor) + meanReversion;
+      
+      const volatility = 0.008 + Math.random() * 0.005;
+      const high = currentRate * (1 + volatility);
+      const low = currentRate * (1 - volatility);
+      const open = low + Math.random() * (high - low);
+      const close = low + Math.random() * (high - low);
+      
+      data.push({
+        date: date.toISOString().split('T')[0],
+        open: open,
+        high: high,
+        low: low,
+        close: close,
+        rate: close,
+        volume: Math.floor(Math.random() * 2000000 + 500000)
       });
-      
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      return { success: true, data };
-      
-    } catch (error) {
-      clearTimeout(timeoutId);
-      
-      if (error.name === 'AbortError') {
-        throw new Error('Request timed out');
-      }
-      
-      throw new Error(`API call failed: ${error.message}`);
     }
-  }, [CONFIG.API_BASE_URL]);
+    
+    return data;
+  }, [sampleRatesData]);
 
   // Update loading state helper with debouncing
   const updateLoadingState = useCallback((type, state, error = null) => {
@@ -225,38 +300,6 @@ const FXTracker = () => {
       }, 150); // Small delay to stabilize
     } else {
       updateStableState();
-    }
-  }, []);
-
-  // Retry mechanism
-  const retryOperation = useCallback(async (operation, type) => {
-    const currentRetries = retryCount[type] || 0;
-    if (currentRetries >= CONFIG.MAX_RETRIES) {
-      updateLoadingState(type, 'error', `Failed after ${CONFIG.MAX_RETRIES} attempts. Please check your connection and try again.`);
-      return;
-    }
-    
-    setRetryCount(prev => ({ ...prev, [type]: currentRetries + 1 }));
-    
-    // Add delay before retry
-    await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * (currentRetries + 1)));
-    
-    await operation();
-  }, [retryCount, CONFIG.MAX_RETRIES, CONFIG.RETRY_DELAY, updateLoadingState]);
-
-  // Check connection status
-  const checkConnection = useCallback(async () => {
-    try {
-      // Try to fetch a simple endpoint or ping
-      const response = await fetch('/api/health', { 
-        method: 'HEAD',
-        cache: 'no-cache'
-      });
-      setConnectionStatus('online');
-      return true;
-    } catch (error) {
-      setConnectionStatus('offline');
-      return false;
     }
   }, []);
 
@@ -931,42 +974,27 @@ const FXTracker = () => {
     return combinedData.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [historicalData, selectedPair, forecast]);
 
-  // Fetch rates with proper error handling
+  // Simulate data fetching with realistic delays
   const fetchRates = useCallback(async () => {
     updateLoadingState('rates', 'loading');
     
-    try {
-      const result = await makeApiCall(CONFIG.RATES_ENDPOINT, {}, CONFIG.TIMEOUTS.RATES);
-      
-      if (result.success && result.data && result.data.rates) {
-        setRates(result.data.rates);
-        setLastUpdate(new Date());
-        updateLoadingState('rates', 'success');
-        setRetryCount(prev => ({ ...prev, rates: 0 }));
-      } else {
-        throw new Error('Invalid response format from rates API');
-      }
-    } catch (error) {
-      console.error('Rates fetch error:', error);
-      await retryOperation(fetchRates, 'rates');
-    }
-  }, [makeApiCall, CONFIG.RATES_ENDPOINT, CONFIG.TIMEOUTS.RATES, updateLoadingState, retryOperation]);
+    // Simulate API delay
+    setTimeout(() => {
+      setRates(sampleRatesData);
+      setLastUpdate(new Date());
+      updateLoadingState('rates', 'success');
+      setRetryCount(prev => ({ ...prev, rates: 0 }));
+    }, 800 + Math.random() * 400); // 0.8-1.2 second delay
+  }, [sampleRatesData, updateLoadingState]);
 
-  // Fetch historical data with proper error handling
   const fetchHistoricalData = useCallback(async (pair) => {
     updateLoadingState('historical', 'loading');
     
-    try {
-      const params = {
-        pair,
-        startDate: dateRange.start,
-        endDate: dateRange.end
-      };
-      
-      const result = await makeApiCall(CONFIG.HISTORICAL_ENDPOINT, params, CONFIG.TIMEOUTS.HISTORICAL);
-      
-      if (result.success && result.data && result.data.historicalData) {
-        const enhancedData = calculateIndicators(result.data.historicalData);
+    // Simulate API delay
+    setTimeout(() => {
+      try {
+        const rawData = generateHistoricalData(pair);
+        const enhancedData = calculateIndicators(rawData);
         const forecastData = advancedForecast(enhancedData, forecastDays);
         
         setHistoricalData(prev => ({
@@ -1006,62 +1034,39 @@ const FXTracker = () => {
         
         updateLoadingState('historical', 'success');
         setRetryCount(prev => ({ ...prev, historical: 0 }));
-      } else {
-        throw new Error('Invalid response format from historical data API');
+      } catch (error) {
+        updateLoadingState('historical', 'error', 'Failed to process historical data');
       }
-    } catch (error) {
-      console.error('Historical data fetch error:', error);
-      await retryOperation(() => fetchHistoricalData(pair), 'historical');
-    }
-  }, [makeApiCall, CONFIG.HISTORICAL_ENDPOINT, CONFIG.TIMEOUTS.HISTORICAL, dateRange, forecastDays, updateLoadingState, retryOperation, calculateIndicators, advancedForecast]);
+    }, 1200 + Math.random() * 800); // 1.2-2 second delay
+  }, [generateHistoricalData, calculateIndicators, advancedForecast, forecastDays, updateLoadingState]);
 
-  // Fetch news with proper error handling
   const fetchNews = useCallback(async () => {
     updateLoadingState('news', 'loading');
     
-    try {
-      const result = await makeApiCall(CONFIG.NEWS_ENDPOINT, {}, CONFIG.TIMEOUTS.NEWS);
-      
-      if (result.success && result.data && Array.isArray(result.data.news)) {
-        setNews(result.data.news);
-        updateLoadingState('news', 'success');
-        setRetryCount(prev => ({ ...prev, news: 0 }));
-      } else {
-        throw new Error('Invalid response format from news API');
-      }
-    } catch (error) {
-      console.error('News fetch error:', error);
-      setNews([]);
-      updateLoadingState('news', 'error', 'Unable to load financial news. News services may be temporarily unavailable.');
-    }
-  }, [makeApiCall, CONFIG.NEWS_ENDPOINT, CONFIG.TIMEOUTS.NEWS, updateLoadingState]);
+    // Simulate API delay
+    setTimeout(() => {
+      setNews(sampleNewsData);
+      updateLoadingState('news', 'success');
+      setRetryCount(prev => ({ ...prev, news: 0 }));
+    }, 600 + Math.random() * 300); // 0.6-0.9 second delay
+  }, [sampleNewsData, updateLoadingState]);
 
-  // Fetch events with proper error handling
   const fetchEvents = useCallback(async () => {
     updateLoadingState('events', 'loading');
     
-    try {
-      const result = await makeApiCall(CONFIG.EVENTS_ENDPOINT, {}, CONFIG.TIMEOUTS.EVENTS);
+    // Simulate API delay
+    setTimeout(() => {
+      const now = new Date();
+      const futureEvents = sampleEventsData.filter(event => {
+        const eventDate = new Date(event.date);
+        return eventDate > now;
+      }).slice(0, 4);
       
-      if (result.success && result.data && Array.isArray(result.data.events)) {
-        const now = new Date();
-        const futureEvents = result.data.events.filter(event => {
-          const eventDate = new Date(event.date);
-          return eventDate > now;
-        }).slice(0, 4);
-        
-        setUpcomingEvents(futureEvents);
-        updateLoadingState('events', 'success');
-        setRetryCount(prev => ({ ...prev, events: 0 }));
-      } else {
-        throw new Error('Invalid response format from events API');
-      }
-    } catch (error) {
-      console.error('Events fetch error:', error);
-      setUpcomingEvents([]);
-      updateLoadingState('events', 'error', 'Unable to load upcoming events.');
-    }
-  }, [makeApiCall, CONFIG.EVENTS_ENDPOINT, CONFIG.TIMEOUTS.EVENTS, updateLoadingState]);
+      setUpcomingEvents(futureEvents);
+      updateLoadingState('events', 'success');
+      setRetryCount(prev => ({ ...prev, events: 0 }));
+    }, 500 + Math.random() * 200); // 0.5-0.7 second delay
+  }, [sampleEventsData, updateLoadingState]);
 
   // Handle pair changes
   const handlePairChange = useCallback((base, quote) => {
@@ -1270,7 +1275,6 @@ const FXTracker = () => {
   useEffect(() => {
     const initialize = async () => {
       setIsInitialLoad(true);
-      await checkConnection();
       
       // Stagger the API calls to reduce simultaneous loading jitter
       fetchRates();
@@ -1289,7 +1293,7 @@ const FXTracker = () => {
     };
     
     initialize();
-  }, [checkConnection, fetchRates, fetchNews, fetchEvents]);
+  }, [fetchRates, fetchNews, fetchEvents]);
 
   // Fetch historical data when pair changes
   useEffect(() => {
@@ -1377,7 +1381,7 @@ const FXTracker = () => {
                 </div>
                 <div className="mt-3">
                   <button
-                    onClick={checkConnection}
+                    onClick={() => setConnectionStatus('online')}
                     className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 transition-all duration-200 transform hover:scale-105"
                   >
                     Check Connection
