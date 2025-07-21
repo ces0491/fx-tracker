@@ -1,4 +1,4 @@
-// pages/api/news.js - Financial news
+// pages/api/news.js - Fixed time calculation
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -6,6 +6,40 @@ export default async function handler(req, res) {
 
   try {
     const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
+    
+    if (!ALPHA_VANTAGE_API_KEY) {
+      // Return mock news data for testing
+      const mockNews = [
+        {
+          id: 1,
+          title: "Global Currency Markets Show Mixed Signals",
+          summary: "Major currencies experiencing volatility amid central bank policy expectations.",
+          source: "Mock Financial News",
+          time: "2 hours ago",
+          impact: "medium",
+          currencies: ["USD", "EUR", "GBP"],
+          url: "#",
+          sentiment: "Neutral"
+        },
+        {
+          id: 2,
+          title: "NZD Strengthens Against Major Pairs",
+          summary: "New Zealand Dollar gains ground on positive economic data.",
+          source: "Mock Reuters",
+          time: "4 hours ago",
+          impact: "high",
+          currencies: ["NZD", "USD"],
+          url: "#",
+          sentiment: "Bullish"
+        }
+      ];
+      
+      return res.status(200).json({ 
+        news: mockNews,
+        note: "Mock data - Add ALPHA_VANTAGE_API_KEY for real news"
+      });
+    }
+
     const forexTickers = 'FOREX:USD,FOREX:EUR,FOREX:GBP,FOREX:JPY,FOREX:AUD,FOREX:CAD,FOREX:NZD,FOREX:CHF';
     const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${forexTickers}&limit=50&apikey=${ALPHA_VANTAGE_API_KEY}`;
     
@@ -37,13 +71,45 @@ export default async function handler(req, res) {
           else if (score > 0.15) impact = 'medium';
         }
 
-        // Format time
-        const timePublished = new Date(article.time_published);
-        const now = new Date();
-        const hoursAgo = Math.floor((now - timePublished) / (1000 * 60 * 60));
-        const timeString = hoursAgo < 1 ? 'Less than 1 hour ago' : 
-                         hoursAgo < 24 ? `${hoursAgo} hours ago` : 
-                         `${Math.floor(hoursAgo / 24)} days ago`;
+        // FIXED: Better time calculation
+        let timeString = 'Unknown time';
+        if (article.time_published) {
+          try {
+            // Parse the time_published format: YYYYMMDDTHHMMSS
+            const timeStr = article.time_published;
+            const year = parseInt(timeStr.substring(0, 4));
+            const month = parseInt(timeStr.substring(4, 6)) - 1; // JS months are 0-indexed
+            const day = parseInt(timeStr.substring(6, 8));
+            const hour = parseInt(timeStr.substring(9, 11));
+            const minute = parseInt(timeStr.substring(11, 13));
+            const second = parseInt(timeStr.substring(13, 15));
+            
+            const timePublished = new Date(year, month, day, hour, minute, second);
+            const now = new Date();
+            const diffMs = now - timePublished;
+            
+            if (diffMs >= 0) {
+              const diffMinutes = Math.floor(diffMs / (1000 * 60));
+              const diffHours = Math.floor(diffMinutes / 60);
+              const diffDays = Math.floor(diffHours / 24);
+              
+              if (diffDays > 0) {
+                timeString = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+              } else if (diffHours > 0) {
+                timeString = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+              } else if (diffMinutes > 0) {
+                timeString = `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+              } else {
+                timeString = 'Just now';
+              }
+            } else {
+              timeString = 'Future date';
+            }
+          } catch (error) {
+            console.error('Error parsing time:', error);
+            timeString = 'Time parse error';
+          }
+        }
 
         return {
           id: index + 1,

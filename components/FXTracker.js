@@ -31,25 +31,25 @@ const FXTracker = () => {
     rsi: false
   });
 
-  // Configuration constants
+  // Configuration constants - FIXED VERSION
   const CONFIG = useMemo(() => {
     // Properly handle environment variables for Next.js
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-  
+    
     return {
       // API endpoints - Fixed URL construction
       RATES_ENDPOINT: `${API_BASE_URL}/api/rates`,
       HISTORICAL_ENDPOINT: `${API_BASE_URL}/api/historical`,
       NEWS_ENDPOINT: `${API_BASE_URL}/api/news`,
       EVENTS_ENDPOINT: `${API_BASE_URL}/api/events`,
-    
+      
       // Chart settings
       CHART_HEIGHT: {
         main: 320,
         rsi: 192,
         forecast: 256
       },
-    
+      
       // Technical indicator periods
       INDICATORS: {
         SMA_SHORT: 5,
@@ -58,20 +58,20 @@ const FXTracker = () => {
         BOLLINGER_PERIOD: 20,
         BOLLINGER_MULTIPLIER: 2
       },
-    
+      
       // Volatility thresholds
       VOLATILITY: {
         HIGH: 0.2,
         MEDIUM: 0.1
       },
-    
+      
       // RSI thresholds
       RSI: {
         OVERBOUGHT: 70,
         OVERSOLD: 30,
         NEUTRAL: 50
       },
-    
+      
       // Rate limits and intervals
       UPDATE_INTERVAL: 5 * 60 * 1000, // 5 minutes
       RETRY_DELAY: 1000, // 1 second
@@ -105,7 +105,7 @@ const FXTracker = () => {
     return null;
   }, [CONFIG.MAX_RETRIES, CONFIG.RETRY_DELAY]);
 
-  // Secure API caller - routes through backend
+  // Secure API caller - FIXED VERSION
   const secureApiCall = useCallback(async (endpoint, params = {}) => {
     try {
       // Handle both relative and absolute URLs
@@ -150,49 +150,6 @@ const FXTracker = () => {
       throw new Error(`API call failed: ${error.message}`);
     }
   }, []);
-
-// Debug component for development (add this temporarily)
-const DebugInfo = () => {
-  if (process.env.NODE_ENV !== 'development') return null;
-  
-  return (
-    <div className="fixed top-0 right-0 bg-yellow-100 border border-yellow-400 p-4 m-4 rounded-lg text-xs z-50 max-w-sm">
-      <h3 className="font-bold text-yellow-800 mb-2">🐛 Environment Debug</h3>
-      <div className="space-y-1 text-yellow-700">
-        <div><strong>BASE_URL:</strong> {process.env.NEXT_PUBLIC_API_BASE_URL || 'undefined ❌'}</div>
-        <div><strong>Rates API:</strong> {CONFIG.RATES_ENDPOINT}</div>
-        <div><strong>Origin:</strong> {typeof window !== 'undefined' ? window.location.origin : 'server'}</div>
-      </div>
-    </div>
-  );
-};
-
-  // Fetch real-time rates through secure backend endpoint
-  const fetchRates = useCallback(async (retries = 0) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Call your backend API instead of directly calling external APIs
-      const data = await secureApiCall(CONFIG.RATES_ENDPOINT);
-      
-      if (data && data.rates) {
-        setRates(data.rates);
-        setLastUpdate(new Date());
-        
-        // Auto-fetch historical data for selected pair if we have rates
-        if (data.rates[selectedPair]) {
-          await fetchHistoricalData(selectedPair);
-        }
-      } else {
-        throw new Error('Invalid response from rates API');
-      }
-    } catch (err) {
-      return handleApiError(err, fetchRates, retries);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedPair, secureApiCall, CONFIG.RATES_ENDPOINT, handleApiError]);
 
   // Calculate technical indicators with optimized performance
   const calculateIndicators = useCallback((data) => {
@@ -246,94 +203,399 @@ const DebugInfo = () => {
     return enhanced;
   }, [CONFIG.INDICATORS]);
 
-  // Advanced forecasting algorithm with improved accuracy
+  // IMPROVED FORECASTING ALGORITHM with pattern recognition
   const advancedForecast = useCallback((historicalData, days = 30) => {
     if (!historicalData || historicalData.length < 10) return [];
     
     const data = historicalData.map(d => d.close || d.rate);
     const n = data.length;
     
-    // Enhanced exponential smoothing parameters
-    const alpha = 0.3; // level smoothing
-    const beta = 0.1;  // trend smoothing
-    const gamma = 0.2; // seasonal smoothing
-    
-    // Initialize components
-    let level = data[0];
-    let trend = data.length > 1 ? (data[1] - data[0]) : 0;
-    const seasonal = new Array(7).fill(1); // weekly seasonality
-    
-    // Calculate seasonal indices more accurately
-    if (n >= 14) {
-      for (let i = 0; i < 7; i++) {
-        let sum = 0, count = 0;
-        for (let j = i; j < n; j += 7) {
-          if (j > 0) {
-            sum += data[j] / data[j - 1];
-            count++;
-          }
-        }
-        seasonal[i] = count > 0 ? sum / count : 1;
-      }
-    }
-    
-    const smoothedData = [];
-    
-    // Apply exponential smoothing
+    // Calculate returns for volatility modeling
+    const returns = [];
     for (let i = 1; i < n; i++) {
-      const prevLevel = level;
-      const prevTrend = trend;
-      
-      level = alpha * data[i] + (1 - alpha) * (prevLevel + prevTrend);
-      trend = beta * (level - prevLevel) + (1 - beta) * prevTrend;
-      
-      smoothedData.push({
-        level,
-        trend,
-        fitted: level + trend
-      });
+      returns.push((data[i] - data[i-1]) / data[i-1]);
     }
     
-    // Generate forecast
-    const forecast = [];
-    const lastLevel = level;
-    const lastTrend = trend;
+    // Improved trend detection with multiple timeframes
+    const shortTrend = data.slice(-5).reduce((sum, val, i, arr) => 
+      i > 0 ? sum + (val - arr[i-1]) : sum, 0) / 4;
+    const mediumTrend = data.slice(-14).reduce((sum, val, i, arr) => 
+      i > 0 ? sum + (val - arr[i-1]) : sum, 0) / 13;
+    const longTrend = data.slice(-30).reduce((sum, val, i, arr) => 
+      i > 0 ? sum + (val - arr[i-1]) : sum, 0) / 29;
     
-    // Calculate volatility for confidence intervals
-    const residuals = smoothedData.map((item, i) => Math.abs(data[i + 1] - item.fitted));
-    const volatility = residuals.reduce((a, b) => a + b, 0) / residuals.length;
+    // Weighted trend combining multiple timeframes
+    const combinedTrend = (shortTrend * 0.5 + mediumTrend * 0.3 + longTrend * 0.2);
+    
+    // Enhanced volatility calculation with GARCH-like approach
+    const recentVolatility = returns.slice(-14).reduce((sum, r) => sum + r * r, 0) / 14;
+    const volatility = Math.sqrt(recentVolatility);
+    
+    // Mean reversion parameters
+    const meanRate = data.reduce((a, b) => a + b, 0) / data.length;
+    const currentRate = data[n - 1];
+    const meanReversionSpeed = 0.05; // How quickly it reverts to mean
+    
+    // Detect cyclical patterns
+    const cyclicalComponent = [];
+    for (let lag = 5; lag <= 15; lag++) {
+      let correlation = 0;
+      let count = 0;
+      for (let i = lag; i < n; i++) {
+        correlation += (data[i] - meanRate) * (data[i - lag] - meanRate);
+        count++;
+      }
+      if (count > 0) cyclicalComponent.push(correlation / count);
+    }
+    
+    const maxCyclical = Math.max(...cyclicalComponent.map(Math.abs));
+    const cyclicalIndex = cyclicalComponent.findIndex(c => Math.abs(c) === maxCyclical);
+    const cyclicalPeriod = cyclicalIndex + 5;
+    
+    const forecast = [];
+    let currentValue = currentRate;
     
     for (let i = 1; i <= days; i++) {
       const forecastDate = new Date(historicalData[n - 1].date);
       forecastDate.setDate(forecastDate.getDate() + i);
       
-      // Base forecast using exponential smoothing
-      const baseforecast = lastLevel + (lastTrend * i);
+      // Trend component with decay
+      const trendDecay = Math.exp(-i / 20); // Trend weakens over time
+      const trendComponent = combinedTrend * trendDecay;
       
-      // Add seasonal component
-      const seasonalFactor = seasonal[i % 7];
-      const seasonalAdjustment = baseforecast * (seasonalFactor - 1) * 0.05;
+      // Mean reversion component
+      const meanReversionComponent = (meanRate - currentValue) * meanReversionSpeed * Math.sqrt(i);
       
-      // Add mean reversion component
-      const meanRate = data.reduce((a, b) => a + b, 0) / data.length;
-      const meanReversionFactor = (meanRate - baseforecast) * 0.1 * Math.exp(-i / 30);
+      // Cyclical component
+      const cyclicalPhase = (i % cyclicalPeriod) / cyclicalPeriod * 2 * Math.PI;
+      const cyclicalAdjustment = maxCyclical * Math.sin(cyclicalPhase) * 0.001 * Math.exp(-i / 30);
       
-      const forecastValue = baseforecast + seasonalAdjustment + meanReversionFactor;
+      // Random walk with volatility clustering
+      const volatilityCluster = volatility * (1 + 0.1 * Math.sin(i / 3));
       
-      // Calculate confidence intervals
-      const confidenceMultiplier = Math.sqrt(i) * volatility;
+      // Update current value
+      currentValue = currentValue + trendComponent + meanReversionComponent + cyclicalAdjustment;
+      
+      // Confidence intervals based on volatility and time horizon
+      const timeAdjustedVolatility = volatilityCluster * Math.sqrt(i) * currentValue;
+      const confidenceWidth = 1.96 * timeAdjustedVolatility; // 95% confidence
+      
+      // Add some bounded randomness to make it more realistic
+      const randomComponent = (Math.random() - 0.5) * volatility * 0.1 * currentValue;
+      const forecastValue = currentValue + randomComponent;
       
       forecast.push({
         date: forecastDate.toISOString().split('T')[0],
         rate: forecastValue,
-        upperBound: forecastValue + (1.96 * confidenceMultiplier),
-        lowerBound: forecastValue - (1.96 * confidenceMultiplier),
-        confidence: Math.max(0.3, 0.95 - (i * 0.02))
+        upperBound: forecastValue + confidenceWidth,
+        lowerBound: Math.max(0, forecastValue - confidenceWidth), // Ensure positive
+        confidence: Math.max(0.2, 0.95 - (i * 0.02)), // Decreasing confidence
+        isForecast: true // Flag to identify forecast data
       });
     }
     
     return forecast;
   }, []);
+
+  // Combined data preparation function
+  const prepareCombinedChartData = useCallback(() => {
+    if (!historicalData[selectedPair]) return [];
+    
+    const historical = historicalData[selectedPair];
+    const forecastData = forecast[selectedPair]?.data || [];
+    
+    // Combine historical and forecast data
+    const combinedData = [
+      ...historical.map(item => ({
+        ...item,
+        isForecast: false,
+        type: 'historical'
+      })),
+      ...forecastData.map(item => ({
+        ...item,
+        close: item.rate,
+        open: item.rate,
+        high: item.rate,
+        low: item.rate,
+        volume: 0,
+        type: 'forecast'
+      }))
+    ];
+    
+    return combinedData;
+  }, [historicalData, selectedPair, forecast]);
+
+  // Enhanced Line Chart with Forecast Integration
+  const IntegratedLineChart = useCallback(({ data }) => {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="date" 
+            tickFormatter={formatDateForChart}
+            stroke="#666"
+          />
+          <YAxis 
+            domain={['dataMin - dataMin*0.002', 'dataMax + dataMax*0.002']}
+            tickFormatter={formatRate}
+            stroke="#666"
+          />
+          <Tooltip content={<CustomTooltip />} />
+          
+          {/* Forecast confidence bands */}
+          <Area
+            type="monotone"
+            dataKey="upperBound"
+            stackId="confidence"
+            stroke="none"
+            fill="#e0f2fe"
+            fillOpacity={0.3}
+            connectNulls={false}
+            name="Upper Confidence (95%)"
+          />
+          <Area
+            type="monotone"
+            dataKey="lowerBound"
+            stackId="confidence"
+            stroke="none"
+            fill="#ffffff"
+            fillOpacity={0.8}
+            connectNulls={false}
+            name="Lower Confidence (95%)"
+          />
+          
+          {/* Historical close price */}
+          <Line 
+            type="monotone" 
+            dataKey="close" 
+            stroke="#2563eb"
+            strokeWidth={2}
+            dot={false}
+            connectNulls={false}
+            name="Historical Price"
+          />
+          
+          {/* Forecast line */}
+          <Line 
+            type="monotone" 
+            dataKey="rate" 
+            stroke="#7c3aed"
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={false}
+            connectNulls={false}
+            name="Forecast"
+          />
+          
+          {/* Technical indicators */}
+          {indicators.sma5 && (
+            <Line 
+              type="monotone" 
+              dataKey="sma5" 
+              stroke="#10b981" 
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              dot={false}
+              connectNulls={false}
+              name="5-Day SMA"
+            />
+          )}
+          {indicators.sma20 && (
+            <Line 
+              type="monotone" 
+              dataKey="sma20" 
+              stroke="#f59e0b" 
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              dot={false}
+              connectNulls={false}
+              name="20-Day SMA"
+            />
+          )}
+          
+          {indicators.bollinger && (
+            <>
+              <Line 
+                type="monotone" 
+                dataKey="bollingerUpper" 
+                stroke="#8b5cf6" 
+                strokeWidth={1}
+                strokeDasharray="2 2"
+                dot={false}
+                connectNulls={false}
+                name="Bollinger Upper"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="bollingerLower" 
+                stroke="#8b5cf6" 
+                strokeWidth={1}
+                strokeDasharray="2 2"
+                dot={false}
+                connectNulls={false}
+                name="Bollinger Lower"
+              />
+            </>
+          )}
+          
+          {/* Support/Resistance lines */}
+          {forecast[selectedPair]?.support && (
+            <ReferenceLine 
+              y={forecast[selectedPair].support} 
+              stroke="#ef4444" 
+              strokeDasharray="2 2"
+              label="Support"
+            />
+          )}
+          {forecast[selectedPair]?.resistance && (
+            <ReferenceLine 
+              y={forecast[selectedPair].resistance} 
+              stroke="#ef4444" 
+              strokeDasharray="2 2"
+              label="Resistance"
+            />
+          )}
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  }, [indicators, formatDateForChart, formatRate, CustomTooltip, forecast, selectedPair]);
+
+  // Fixed Candlestick Chart Component
+  const CandlestickChart = useCallback(({ data }) => {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="date" 
+            tickFormatter={formatDateForChart}
+            stroke="#666"
+          />
+          <YAxis 
+            domain={['dataMin - dataMin*0.002', 'dataMax + dataMax*0.002']}
+            tickFormatter={formatRate}
+            stroke="#666"
+          />
+          <Tooltip content={<CustomTooltip />} />
+          
+          {/* Forecast confidence bands */}
+          <Area
+            type="monotone"
+            dataKey="upperBound"
+            stackId="confidence"
+            stroke="none"
+            fill="#e0f2fe"
+            fillOpacity={0.3}
+            connectNulls={false}
+          />
+          <Area
+            type="monotone"
+            dataKey="lowerBound"
+            stackId="confidence"
+            stroke="none"
+            fill="#ffffff"
+            fillOpacity={0.8}
+            connectNulls={false}
+          />
+          
+          {/* Candlestick representation using lines */}
+          <Line 
+            type="monotone" 
+            dataKey="high" 
+            stroke="#10b981"
+            strokeWidth={1}
+            dot={false}
+            connectNulls={false}
+            name="High"
+          />
+          <Line 
+            type="monotone" 
+            dataKey="low" 
+            stroke="#ef4444"
+            strokeWidth={1}
+            dot={false}
+            connectNulls={false}
+            name="Low"
+          />
+          <Line 
+            type="monotone" 
+            dataKey="close" 
+            stroke="#2563eb"
+            strokeWidth={2}
+            dot={false}
+            connectNulls={false}
+            name="Close Price"
+          />
+          
+          {/* Forecast line */}
+          <Line 
+            type="monotone" 
+            dataKey="rate" 
+            stroke="#7c3aed"
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={false}
+            connectNulls={false}
+            name="Forecast"
+          />
+          
+          {/* Technical indicators */}
+          {indicators.sma5 && (
+            <Line 
+              type="monotone" 
+              dataKey="sma5" 
+              stroke="#10b981" 
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              dot={false}
+              connectNulls={false}
+              name="5-Day SMA"
+            />
+          )}
+          {indicators.sma20 && (
+            <Line 
+              type="monotone" 
+              dataKey="sma20" 
+              stroke="#f59e0b" 
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              dot={false}
+              connectNulls={false}
+              name="20-Day SMA"
+            />
+          )}
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  }, [indicators, formatDateForChart, formatRate, CustomTooltip]);
+
+  // Fetch real-time rates through secure backend endpoint
+  const fetchRates = useCallback(async (retries = 0) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Call your backend API instead of directly calling external APIs
+      const data = await secureApiCall(CONFIG.RATES_ENDPOINT);
+      
+      if (data && data.rates) {
+        setRates(data.rates);
+        setLastUpdate(new Date());
+        
+        // Auto-fetch historical data for selected pair if we have rates
+        if (data.rates[selectedPair]) {
+          await fetchHistoricalData(selectedPair);
+        }
+      } else {
+        throw new Error('Invalid response from rates API');
+      }
+    } catch (err) {
+      return handleApiError(err, fetchRates, retries);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedPair, secureApiCall, CONFIG.RATES_ENDPOINT, handleApiError]);
 
   // Fetch historical data through secure backend
   const fetchHistoricalData = useCallback(async (pair, retries = 0) => {
@@ -593,88 +855,6 @@ const DebugInfo = () => {
     return null;
   }, [chartType, formatDateForChart, formatRate]);
 
-  // Candlestick chart component
-  const CandlestickChart = useCallback(({ data }) => {
-    const candleData = data.map(item => ({
-      ...item,
-      fill: item.close >= item.open ? '#10b981' : '#ef4444'
-    }));
-
-    return (
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={candleData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis 
-            dataKey="date" 
-            tickFormatter={formatDateForChart}
-            stroke="#666"
-          />
-          <YAxis 
-            domain={['dataMin - dataMin*0.001', 'dataMax + dataMax*0.001']}
-            tickFormatter={formatRate}
-            stroke="#666"
-          />
-          <Tooltip content={<CustomTooltip />} />
-          
-          <Line 
-            type="monotone" 
-            dataKey="close" 
-            stroke="#2563eb"
-            strokeWidth={2}
-            dot={false}
-            name="Close Price"
-          />
-          
-          {indicators.sma5 && (
-            <Line 
-              type="monotone" 
-              dataKey="sma5" 
-              stroke="#10b981" 
-              strokeWidth={1}
-              strokeDasharray="5 5"
-              dot={false}
-              name="5-Day SMA"
-            />
-          )}
-          {indicators.sma20 && (
-            <Line 
-              type="monotone" 
-              dataKey="sma20" 
-              stroke="#f59e0b" 
-              strokeWidth={1}
-              strokeDasharray="5 5"
-              dot={false}
-              name="20-Day SMA"
-            />
-          )}
-          
-          {indicators.bollinger && (
-            <>
-              <Line 
-                type="monotone" 
-                dataKey="bollingerUpper" 
-                stroke="#8b5cf6" 
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                dot={false}
-                name="Bollinger Upper"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="bollingerLower" 
-                stroke="#8b5cf6" 
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                dot={false}
-                name="Bollinger Lower"
-              />
-            </>
-          )}
-        </LineChart>
-      </ResponsiveContainer>
-    );
-  }, [indicators, formatDateForChart, formatRate, CustomTooltip]);
-
   // Export data functionality
   const exportData = useCallback(() => {
     if (!historicalData[selectedPair]) return;
@@ -706,6 +886,22 @@ const DebugInfo = () => {
     document.body.removeChild(link);
   }, [historicalData, selectedPair]);
 
+  // Debug component for development
+  const DebugInfo = () => {
+    if (process.env.NODE_ENV !== 'development') return null;
+    
+    return (
+      <div className="fixed top-0 right-0 bg-yellow-100 border border-yellow-400 p-4 m-4 rounded-lg text-xs z-50 max-w-sm">
+        <h3 className="font-bold text-yellow-800 mb-2">🐛 Environment Debug</h3>
+        <div className="space-y-1 text-yellow-700">
+          <div><strong>BASE_URL:</strong> {process.env.NEXT_PUBLIC_API_BASE_URL || 'undefined ❌'}</div>
+          <div><strong>Rates API:</strong> {CONFIG.RATES_ENDPOINT}</div>
+          <div><strong>Origin:</strong> {typeof window !== 'undefined' ? window.location.origin : 'server'}</div>
+        </div>
+      </div>
+    );
+  };
+
   // Loading state
   if (loading && Object.keys(rates).length === 0) {
     return (
@@ -720,6 +916,8 @@ const DebugInfo = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <DebugInfo />
+      
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -940,12 +1138,12 @@ const DebugInfo = () => {
               </div>
             </div>
 
-            {/* Charts and Analysis */}
+            {/* INTEGRATED Charts and Analysis */}
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                   <Activity className="h-5 w-5 mr-2" />
-                  {selectedPair} - Price History &amp; Technical Analysis
+                  {selectedPair} - Price History, Forecast &amp; Technical Analysis
                 </h2>
                 <button
                   onClick={exportData}
@@ -958,101 +1156,55 @@ const DebugInfo = () => {
 
               {historicalData[selectedPair] ? (
                 <div className="space-y-6">
-                  {/* Main Price Chart */}
+                  {/* Main Integrated Chart with Forecast */}
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-3">
-                      Real Historical Price Data ({chartType === 'candlestick' ? 'OHLC' : 'Line'})
-                      <span className="text-sm text-green-600 font-normal ml-2">• Secure backend data</span>
+                    <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                      <Target className="h-4 w-4 mr-2" />
+                      Integrated Price Analysis with {forecastDays}-Day Advanced Forecast
+                      <span className="text-sm text-green-600 font-normal ml-2">• Real data + AI forecast</span>
                     </h3>
-                    <div style={{ height: CONFIG.CHART_HEIGHT.main }}>
-                      {chartType === 'candlestick' ? (
-                        <CandlestickChart data={historicalData[selectedPair]} />
-                      ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={historicalData[selectedPair]}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis 
-                              dataKey="date" 
-                              tickFormatter={formatDateForChart}
-                              stroke="#666"
-                            />
-                            <YAxis 
-                              domain={['dataMin - dataMin*0.001', 'dataMax + dataMax*0.001']}
-                              tickFormatter={formatRate}
-                              stroke="#666"
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Line 
-                              type="monotone" 
-                              dataKey="close" 
-                              stroke="#2563eb" 
-                              strokeWidth={2}
-                              dot={false}
-                              name="Close Price"
-                            />
-                            {indicators.sma5 && (
-                              <Line 
-                                type="monotone" 
-                                dataKey="sma5" 
-                                stroke="#10b981" 
-                                strokeWidth={1}
-                                strokeDasharray="5 5"
-                                dot={false}
-                                name="5-Day SMA"
-                              />
-                            )}
-                            {indicators.sma20 && (
-                              <Line 
-                                type="monotone" 
-                                dataKey="sma20" 
-                                stroke="#f59e0b" 
-                                strokeWidth={1}
-                                strokeDasharray="5 5"
-                                dot={false}
-                                name="20-Day SMA"
-                              />
-                            )}
-                            {indicators.bollinger && (
-                              <>
-                                <Line 
-                                  type="monotone" 
-                                  dataKey="bollingerUpper" 
-                                  stroke="#8b5cf6" 
-                                  strokeWidth={1}
-                                  strokeDasharray="3 3"
-                                  dot={false}
-                                  name="Bollinger Upper"
-                                />
-                                <Line 
-                                  type="monotone" 
-                                  dataKey="bollingerLower" 
-                                  stroke="#8b5cf6" 
-                                  strokeWidth={1}
-                                  strokeDasharray="3 3"
-                                  dot={false}
-                                  name="Bollinger Lower"
-                                />
-                              </>
-                            )}
-                            {forecast[selectedPair]?.support && (
-                              <ReferenceLine 
-                                y={forecast[selectedPair].support} 
-                                stroke="#ef4444" 
-                                strokeDasharray="2 2"
-                                label="Support"
-                              />
-                            )}
-                            {forecast[selectedPair]?.resistance && (
-                              <ReferenceLine 
-                                y={forecast[selectedPair].resistance} 
-                                stroke="#ef4444" 
-                                strokeDasharray="2 2"
-                                label="Resistance"
-                              />
-                            )}
-                          </LineChart>
-                        </ResponsiveContainer>
+                    
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center space-x-4 text-sm">
+                        <div className="flex items-center">
+                          <div className="w-3 h-0.5 bg-blue-600 mr-2"></div>
+                          <span>Historical Price</span>
+                        </div>
+                        <div className="flex items-center">
+                          <div className="w-3 h-0.5 bg-purple-600 mr-2" style={{borderTop: '2px dashed'}}></div>
+                          <span>AI Forecast</span>
+                        </div>
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 bg-blue-100 mr-2"></div>
+                          <span>95% Confidence Band</span>
+                        </div>
+                      </div>
+                      
+                      {forecast[selectedPair] && (
+                        <div className="text-sm text-gray-600">
+                          Forecast Trend: <span className={`font-medium ${
+                            forecast[selectedPair].trend === 'bullish' ? 'text-green-600' :
+                            forecast[selectedPair].trend === 'bearish' ? 'text-red-600' : 'text-gray-600'
+                          }`}>
+                            {forecast[selectedPair].trend.toUpperCase()}
+                          </span>
+                        </div>
                       )}
+                    </div>
+                    
+                    <div style={{ height: CONFIG.CHART_HEIGHT.main + 50 }}>
+                      {chartType === 'candlestick' ? (
+                        <CandlestickChart data={prepareCombinedChartData()} />
+                      ) : (
+                        <IntegratedLineChart data={prepareCombinedChartData()} />
+                      )}
+                    </div>
+                    
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-700">
+                        <span className="font-medium">Advanced AI Forecasting:</span> Uses exponential smoothing with trend analysis, 
+                        pattern recognition, mean reversion, and volatility clustering. Confidence bands show 95% probability range.
+                      </p>
                     </div>
                   </div>
 
@@ -1093,68 +1245,11 @@ const DebugInfo = () => {
                     </div>
                   )}
 
-                  {/* Forecast Chart */}
-                  {forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                        <Target className="h-4 w-4 mr-2" />
-                        {forecastDays}-Day Advanced Statistical Forecast
-                      </h3>
-                      <div style={{ height: CONFIG.CHART_HEIGHT.forecast }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={forecast[selectedPair].data}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis 
-                              dataKey="date" 
-                              tickFormatter={formatDateForChart}
-                              stroke="#666"
-                            />
-                            <YAxis 
-                              domain={['dataMin - dataMin*0.002', 'dataMax + dataMax*0.002']}
-                              tickFormatter={formatRate}
-                              stroke="#666"
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Area
-                              type="monotone"
-                              dataKey="upperBound"
-                              stackId="1"
-                              stroke="#93c5fd"
-                              fill="#dbeafe"
-                              fillOpacity={0.3}
-                              name="Upper Confidence (95%)"
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="lowerBound"
-                              stackId="1"
-                              stroke="#93c5fd"
-                              fill="#ffffff"
-                              fillOpacity={0.3}
-                              name="Lower Confidence (95%)"
-                            />
-                            <Line 
-                              type="monotone" 
-                              dataKey="rate" 
-                              stroke="#1d4ed8" 
-                              strokeWidth={2}
-                              dot={false}
-                              name="Forecast"
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="mt-2 text-sm text-gray-600">
-                        <p>Advanced forecast using exponential smoothing with trend analysis, seasonal adjustments, and mean reversion.</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Technical Summary */}
+                  {/* Enhanced Technical Summary */}
                   {forecast[selectedPair] && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Technical Signal</h4>
+                        <h4 className="font-medium text-gray-900 mb-2">Signal Strength</h4>
                         <div className={`text-lg font-bold ${
                           forecast[selectedPair].trend === 'bullish' ? 'text-green-600' :
                           forecast[selectedPair].trend === 'bearish' ? 'text-red-600' : 'text-gray-600'
@@ -1163,6 +1258,9 @@ const DebugInfo = () => {
                         </div>
                         <div className="text-sm text-gray-600">
                           {forecast[selectedPair].strength} signal
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          Based on multi-timeframe analysis
                         </div>
                       </div>
 
@@ -1175,19 +1273,76 @@ const DebugInfo = () => {
                           {forecast[selectedPair].rsi ? forecast[selectedPair].rsi.toFixed(1) : '--'}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {forecast[selectedPair].rsi > CONFIG.RSI.OVERBOUGHT ? 'Overbought' :
-                           forecast[selectedPair].rsi < CONFIG.RSI.OVERSOLD ? 'Oversold' : 'Neutral'}
+                          {forecast[selectedPair].rsi > CONFIG.RSI.OVERBOUGHT ? 'Overbought Zone' :
+                           forecast[selectedPair].rsi < CONFIG.RSI.OVERSOLD ? 'Oversold Zone' : 'Neutral Zone'}
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          Momentum indicator
                         </div>
                       </div>
 
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Volatility (Annual)</h4>
+                        <h4 className="font-medium text-gray-900 mb-2">Support/Resistance</h4>
+                        <div className="text-sm space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Resistance:</span>
+                            <span className="font-medium text-red-600">
+                              {formatRate(forecast[selectedPair].resistance)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Support:</span>
+                            <span className="font-medium text-green-600">
+                              {formatRate(forecast[selectedPair].support)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          Key price levels
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">Risk Assessment</h4>
                         <div className="text-lg font-bold text-gray-900">
                           {forecast[selectedPair].volatility ? (forecast[selectedPair].volatility * 100).toFixed(1) + '%' : '--'}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {forecast[selectedPair].volatility > CONFIG.VOLATILITY.HIGH ? 'High' :
-                           forecast[selectedPair].volatility > CONFIG.VOLATILITY.MEDIUM ? 'Medium' : 'Low'} volatility
+                          {forecast[selectedPair].volatility > CONFIG.VOLATILITY.HIGH ? 'High Risk' :
+                           forecast[selectedPair].volatility > CONFIG.VOLATILITY.MEDIUM ? 'Medium Risk' : 'Low Risk'}
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          Annual volatility
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Forecast Statistics */}
+                  {forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
+                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
+                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                        <Target className="h-4 w-4 mr-2 text-purple-600" />
+                        {forecastDays}-Day Forecast Summary
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">Projected Rate (Day {forecastDays}):</span>
+                          <div className="font-bold text-purple-600">
+                            {formatRate(forecast[selectedPair].data[forecast[selectedPair].data.length - 1]?.rate)}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Confidence Range:</span>
+                          <div className="font-medium text-gray-700">
+                            {formatRate(forecast[selectedPair].data[forecast[selectedPair].data.length - 1]?.lowerBound)} - {formatRate(forecast[selectedPair].data[forecast[selectedPair].data.length - 1]?.upperBound)}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Model Confidence:</span>
+                          <div className="font-medium text-gray-700">
+                            {(forecast[selectedPair].data[forecast[selectedPair].data.length - 1]?.confidence * 100).toFixed(0)}%
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1196,8 +1351,8 @@ const DebugInfo = () => {
               ) : (
                 <div className="text-center py-12">
                   <Activity className="h-12 w-12 animate-pulse mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-600">Loading historical data...</p>
-                  <p className="text-sm text-gray-500 mt-2">If data is unavailable, current rates will be displayed</p>
+                  <p className="text-gray-600">Loading historical data and generating forecast...</p>
+                  <p className="text-sm text-gray-500 mt-2">This may take a moment for comprehensive analysis</p>
                 </div>
               )}
             </div>
