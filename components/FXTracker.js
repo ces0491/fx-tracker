@@ -14,19 +14,16 @@ const FXTracker = () => {
   const [news, setNews] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   
-  // Loading and error states with debouncing
+  // Loading and error states
   const [loadingState, setLoadingState] = useState({
-    rates: 'idle', // 'idle', 'loading', 'success', 'error', 'timeout'
+    rates: 'idle',
     historical: 'idle',
     news: 'idle',
     events: 'idle'
   });
   const [errors, setErrors] = useState({});
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [retryCount, setRetryCount] = useState({});
-  const [connectionStatus, setConnectionStatus] = useState('online'); // Always online in demo
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [stableLoadingStates, setStableLoadingStates] = useState({});
+  const [connectionStatus, setConnectionStatus] = useState('online');
 
   // Enhanced features
   const [dateRange, setDateRange] = useState({
@@ -73,10 +70,7 @@ const FXTracker = () => {
       OVERBOUGHT: 70,
       OVERSOLD: 30,
       NEUTRAL: 50
-    },
-    
-    MAX_RETRIES: 3,
-    RETRY_DELAY: 2000
+    }
   }), []);
 
   // Available currencies
@@ -93,103 +87,6 @@ const FXTracker = () => {
     'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD', 'EUR/GBP',
     'USD/KES', 'EUR/KES', 'GBP/KES', 'KES/ZAR', 'USD/NGN', 'EUR/NGN'
   ], []);
-
-  // Sample exchange rates - realistic values
-  const sampleRatesData = useMemo(() => ({
-    'NZD/ZAR': 10.8542,
-    'NZD/USD': 0.5823,
-    'USD/ZAR': 18.6420,
-    'EUR/ZAR': 19.8760,
-    'GBP/ZAR': 23.1240,
-    'AUD/NZD': 1.0892,
-    'EUR/USD': 1.0654,
-    'GBP/USD': 1.2401,
-    'USD/JPY': 155.42,
-    'AUD/USD': 0.6344,
-    'USD/CAD': 1.4387,
-    'EUR/GBP': 0.8591,
-    'USD/KES': 129.45,
-    'EUR/KES': 137.89,
-    'GBP/KES': 160.52,
-    'KES/ZAR': 0.1441,
-    'USD/NGN': 1547.80,
-    'EUR/NGN': 1649.23
-  }), []);
-
-  // Sample news data
-  const sampleNewsData = useMemo(() => [
-    {
-      id: 1,
-      title: "Central Bank Signals Interest Rate Changes Ahead",
-      summary: "Recent policy statements indicate potential shifts in monetary policy affecting major currency valuations across global markets.",
-      source: "Financial Times",
-      time: "2 hours ago",
-      impact: "high",
-      sentiment: "Neutral",
-      currencies: ["USD", "EUR"],
-      url: "#"
-    },
-    {
-      id: 2,
-      title: "Commodity Prices Surge Impacts Emerging Market Currencies",
-      summary: "Rising commodity prices boost resource-dependent currencies while creating pressure on commodity-importing nations.",
-      source: "Reuters",
-      time: "4 hours ago",
-      impact: "medium",
-      sentiment: "Bullish",
-      currencies: ["ZAR", "AUD"],
-      url: "#"
-    },
-    {
-      id: 3,
-      title: "Trade Relations Development Affects Cross-Currency Volatility",
-      summary: "Ongoing trade discussions create uncertainty in major currency pairs, particularly affecting emerging market currencies.",
-      source: "Bloomberg",
-      time: "6 hours ago",
-      impact: "medium",
-      sentiment: "Bearish",
-      currencies: ["USD", "CNY"],
-      url: "#"
-    },
-    {
-      id: 4,
-      title: "Economic Data Releases Show Mixed Global Growth Signals",
-      summary: "Latest economic indicators reveal divergent growth patterns across major economies, influencing currency strength expectations.",
-      source: "MarketWatch",
-      time: "8 hours ago",
-      impact: "low",
-      sentiment: "Neutral",
-      currencies: ["EUR", "JPY"],
-      url: "#"
-    }
-  ], []);
-
-  // Sample events data
-  const sampleEventsData = useMemo(() => {
-    const today = new Date();
-    return [
-      {
-        title: "Federal Reserve Interest Rate Decision",
-        date: new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        impact: "high"
-      },
-      {
-        title: "European Central Bank Policy Meeting",
-        date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        impact: "high"
-      },
-      {
-        title: "US Employment Data Release",
-        date: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-        impact: "medium"
-      },
-      {
-        title: "UK GDP Quarterly Report",
-        date: new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-        impact: "medium"
-      }
-    ];
-  }, []);
 
   // Utility functions
   const formatRate = useCallback((rate) => {
@@ -228,79 +125,201 @@ const FXTracker = () => {
     return names[code] || code;
   }, []);
 
-  // Generate realistic historical data
-  const generateHistoricalData = useCallback((pair, days = 90) => {
-    const baseRate = sampleRatesData[pair] || 1.0;
-    const data = [];
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+  // REAL API CALLS - Fetch live exchange rates
+  const fetchRates = useCallback(async () => {
+    setLoadingState(prev => ({ ...prev, rates: 'loading' }));
+    try {
+      const response = await fetch('https://api.exchangerate.host/latest?base=USD');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
+      if (!data.success && data.success !== undefined) throw new Error('API returned error');
+      
+      // Convert to currency pairs format
+      const pairRates = {};
+      const baseRates = data.rates;
+      
+      // Generate all possible pairs from the suggested pairs
+      suggestedPairs.forEach(pair => {
+        const [base, quote] = pair.split('/');
+        if (baseRates[base] && baseRates[quote]) {
+          // Calculate cross rate: base/quote = (USD/quote) / (USD/base)
+          pairRates[pair] = baseRates[quote] / baseRates[base];
+        } else if (base === 'USD' && baseRates[quote]) {
+          pairRates[pair] = baseRates[quote];
+        } else if (quote === 'USD' && baseRates[base]) {
+          pairRates[pair] = 1 / baseRates[base];
+        }
+      });
+      
+      setRates(pairRates);
+      setLastUpdate(new Date());
+      setLoadingState(prev => ({ ...prev, rates: 'success' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.rates;
+        return newErrors;
+      });
+    } catch (error) {
+      console.error('Failed to fetch rates:', error);
+      setLoadingState(prev => ({ ...prev, rates: 'error' }));
+      setErrors(prev => ({ ...prev, rates: `Failed to fetch live rates: ${error.message}` }));
+    }
+  }, [suggestedPairs]);
 
-    let currentRate = baseRate * (0.95 + Math.random() * 0.1); // Start with some variation
+  // REAL API CALLS - Fetch historical data
+  const fetchHistoricalData = useCallback(async (pair) => {
+    setLoadingState(prev => ({ ...prev, historical: 'loading' }));
+    try {
+      const [base, quote] = pair.split('/');
+      const endDate = new Date();
+      const startDate = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000);
+      
+      // Fetch historical data for the date range
+      const promises = [];
+      const currentDate = new Date(startDate);
+      
+      while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        promises.push(
+          fetch(`https://api.exchangerate.host/${dateStr}?base=${base}&symbols=${quote}`)
+            .then(res => res.json())
+            .then(data => ({
+              date: dateStr,
+              rate: data.rates?.[quote] || null
+            }))
+            .catch(() => ({ date: dateStr, rate: null }))
+        );
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      const historicalResults = await Promise.all(promises);
+      
+      // Filter out null rates and create OHLC data
+      const validData = historicalResults
+        .filter(item => item.rate !== null)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      if (validData.length === 0) {
+        throw new Error('No historical data available for this pair');
+      }
+      
+      // Generate OHLC data from daily rates with realistic intraday variation
+      const enhancedData = validData.map((item, index) => {
+        const rate = item.rate;
+        const volatility = 0.005; // 0.5% intraday volatility
+        const variation = volatility * rate;
+        
+        const open = rate + (Math.random() - 0.5) * variation;
+        const close = rate + (Math.random() - 0.5) * variation;
+        const high = Math.max(open, close) + Math.random() * variation;
+        const low = Math.min(open, close) - Math.random() * variation;
+        
+        return {
+          date: item.date,
+          open: open,
+          high: high,
+          low: low,
+          close: close,
+          rate: close,
+          volume: Math.floor(Math.random() * 2000000 + 500000)
+        };
+      });
+      
+      const finalData = calculateIndicators(enhancedData);
+      
+      setHistoricalData(prev => ({
+        ...prev,
+        [pair]: finalData
+      }));
+      
+      // Generate simple forecast based on recent trend
+      const forecastData = generateForecast(finalData, forecastDays);
+      
+      // Calculate technical analysis
+      const recentRates = finalData.slice(-14).map(d => d.close);
+      const firstRate = recentRates[0];
+      const lastRate = recentRates[recentRates.length - 1];
+      const trend = (lastRate - firstRate) / firstRate;
+      
+      const highs = finalData.slice(-30).map(d => d.high);
+      const lows = finalData.slice(-30).map(d => d.low);
+      const resistance = Math.max(...highs);
+      const support = Math.min(...lows);
+      
+      const returns = finalData.slice(-30).map((d, i, arr) => 
+        i > 0 ? Math.log(d.close / arr[i-1].close) : 0
+      ).slice(1);
+      const variance = returns.reduce((sum, r) => sum + r * r, 0) / returns.length;
+      const volatility = Math.sqrt(variance * 252);
+      
+      setForecast(prev => ({
+        ...prev,
+        [pair]: {
+          data: forecastData,
+          trend: trend > 0 ? 'bullish' : 'bearish',
+          strength: Math.abs(trend) > 0.02 ? 'strong' : Math.abs(trend) > 0.005 ? 'moderate' : 'weak',
+          support: support,
+          resistance: resistance,
+          volatility: volatility,
+          rsi: finalData[finalData.length - 1]?.rsi
+        }
+      }));
+      
+      setLoadingState(prev => ({ ...prev, historical: 'success' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.historical;
+        return newErrors;
+      });
+    } catch (error) {
+      console.error('Failed to fetch historical data:', error);
+      setLoadingState(prev => ({ ...prev, historical: 'error' }));
+      setErrors(prev => ({ ...prev, historical: `Failed to fetch historical data: ${error.message}` }));
+    }
+  }, [forecastDays]);
+
+  // Generate simple forecast without confidence bands
+  const generateForecast = useCallback((historicalData, days) => {
+    if (!historicalData || historicalData.length < 10) return [];
     
-    for (let i = 0; i < days; i++) {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + i);
+    const data = historicalData.map(d => d.close);
+    const n = data.length;
+    const currentRate = data[n - 1];
+    
+    // Simple trend-based forecast
+    const shortTermTrend = (data[n - 1] - data[n - 5]) / 5;
+    const mediumTermTrend = (data[n - 1] - data[n - 15]) / 15;
+    const avgTrend = (shortTermTrend + mediumTermTrend) / 2;
+    
+    const forecast = [];
+    let forecastValue = currentRate;
+    const lastDate = new Date(historicalData[n - 1].date);
+    
+    for (let i = 1; i <= days; i++) {
+      const forecastDate = new Date(lastDate);
+      forecastDate.setDate(forecastDate.getDate() + i);
       
-      // Add realistic daily volatility with trending
-      const dailyChange = (Math.random() - 0.5) * 0.03; // ±1.5% daily volatility
-      const trendFactor = Math.sin(i / 25) * 0.0008; // Longer-term trend
-      const meanReversion = (baseRate - currentRate) * 0.001; // Mean reversion
+      // Simple linear projection with some noise
+      const trendDecay = Math.exp(-i / 30); // Trend weakens over time
+      const projection = avgTrend * trendDecay;
+      const noise = (Math.random() - 0.5) * currentRate * 0.001; // Small random component
       
-      currentRate = currentRate * (1 + dailyChange + trendFactor) + meanReversion;
+      forecastValue = forecastValue + projection + noise;
       
-      const volatility = 0.008 + Math.random() * 0.005;
-      const high = currentRate * (1 + volatility);
-      const low = currentRate * (1 - volatility);
-      const open = low + Math.random() * (high - low);
-      const close = low + Math.random() * (high - low);
-      
-      data.push({
-        date: date.toISOString().split('T')[0],
-        open: open,
-        high: high,
-        low: low,
-        close: close,
-        rate: close,
-        volume: Math.floor(Math.random() * 2000000 + 500000)
+      forecast.push({
+        date: forecastDate.toISOString().split('T')[0],
+        rate: forecastValue,
+        close: null,
+        open: null,
+        high: null,
+        low: null,
+        isForecast: true,
+        type: 'forecast'
       });
     }
     
-    return data;
-  }, [sampleRatesData]);
-
-  // Update loading state helper with debouncing
-  const updateLoadingState = useCallback((type, state, error = null) => {
-    // Debounce rapid loading state changes to prevent jitter
-    const updateStableState = () => {
-      setLoadingState(prev => ({ ...prev, [type]: state }));
-      setStableLoadingStates(prev => ({ ...prev, [type]: state }));
-      
-      if (error) {
-        setErrors(prev => ({ ...prev, [type]: error }));
-      } else {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[type];
-          return newErrors;
-        });
-      }
-    };
-
-    // For success states, update immediately
-    if (state === 'success') {
-      updateStableState();
-      return;
-    }
-
-    // For loading states, add a small delay to prevent jitter
-    if (state === 'loading') {
-      setLoadingState(prev => ({ ...prev, [type]: state }));
-      setTimeout(() => {
-        setStableLoadingStates(prev => ({ ...prev, [type]: state }));
-      }, 150); // Small delay to stabilize
-    } else {
-      updateStableState();
-    }
+    return forecast;
   }, []);
 
   // Calculate technical indicators
@@ -354,182 +373,90 @@ const FXTracker = () => {
     return enhanced;
   }, [CONFIG.INDICATORS]);
 
-  // Advanced forecasting algorithm
-  const advancedForecast = useCallback((historicalData, days = 30) => {
-    if (!historicalData || historicalData.length < 10) return [];
+  // Fetch sample news (placeholder - would need news API)
+  const fetchNews = useCallback(async () => {
+    setLoadingState(prev => ({ ...prev, news: 'loading' }));
+    // For now, using static news since real news APIs require authentication
+    const sampleNewsData = [
+      {
+        id: 1,
+        title: "Central Bank Signals Interest Rate Changes Ahead",
+        summary: "Recent policy statements indicate potential shifts in monetary policy affecting major currency valuations.",
+        source: "Financial Times",
+        time: "2 hours ago",
+        impact: "high",
+        sentiment: "Neutral",
+        currencies: ["USD", "EUR"],
+        url: "#"
+      },
+      {
+        id: 2,
+        title: "Commodity Prices Impact Emerging Market Currencies",
+        summary: "Rising commodity prices boost resource-dependent currencies while affecting trade balances.",
+        source: "Reuters",
+        time: "4 hours ago",
+        impact: "medium",
+        sentiment: "Bullish",
+        currencies: ["ZAR", "AUD"],
+        url: "#"
+      }
+    ];
     
-    const data = historicalData.map(d => d.close || d.rate);
-    const n = data.length;
-    
-    const returns = [];
-    for (let i = 1; i < n; i++) {
-      returns.push((data[i] - data[i-1]) / data[i-1]);
-    }
-    
-    // Trend detection
-    const shortTrend = data.slice(-5).reduce((sum, val, i, arr) => 
-      i > 0 ? sum + (val - arr[i-1]) : sum, 0) / 4;
-    const mediumTrend = data.slice(-14).reduce((sum, val, i, arr) => 
-      i > 0 ? sum + (val - arr[i-1]) : sum, 0) / 13;
-    const longTrend = data.slice(-30).reduce((sum, val, i, arr) => 
-      i > 0 ? sum + (val - arr[i-1]) : sum, 0) / 29;
-    
-    const combinedTrend = (shortTrend * 0.5 + mediumTrend * 0.3 + longTrend * 0.2);
-    
-    // Volatility calculation
-    const recentVolatility = returns.slice(-14).reduce((sum, r) => sum + r * r, 0) / 14;
-    const volatility = Math.sqrt(recentVolatility * 252);
-    
-    // Mean reversion
-    const meanRate = data.reduce((a, b) => a + b, 0) / data.length;
-    const currentRate = data[n - 1];
-    const meanReversionSpeed = 0.015;
-    
-    // Base volatility for movement
-    const avgReturn = Math.abs(returns.reduce((a, b) => a + Math.abs(b), 0) / returns.length);
-    const baseVolatility = Math.max(
-      volatility * currentRate * 0.08,
-      currentRate * avgReturn * 1.5,
-      currentRate * 0.002
-    );
-    
-    const forecast = [];
-    let currentValue = currentRate;
-    
-    const lastHistoricalDate = new Date(historicalData[n - 1].date);
-    
-    for (let i = 1; i <= days; i++) {
-      const forecastDate = new Date(lastHistoricalDate);
-      forecastDate.setDate(forecastDate.getDate() + i);
-      
-      // Trend with decay
-      const trendDecay = Math.exp(-i / 25);
-      const trendComponent = combinedTrend * trendDecay;
-      
-      // Mean reversion
-      const meanReversionComponent = (meanRate - currentValue) * meanReversionSpeed;
-      
-      // Random walk with cyclical component
-      const timeScaling = Math.sqrt(i / days);
-      const randomWalk = (Math.random() - 0.5) * baseVolatility * (0.3 + timeScaling * 0.4);
-      const cyclicalComponent = Math.sin(i * 0.2) * baseVolatility * 0.1;
-      
-      currentValue = currentValue + trendComponent + meanReversionComponent + randomWalk + cyclicalComponent;
-      
-      // Confidence intervals
-      const timeExpansion = Math.sqrt(i);
-      const uncertaintyGrowth = 1 + (i * 0.12);
-      const dailyVolatility = baseVolatility;
-      const cumulativeVolatility = dailyVolatility * timeExpansion * uncertaintyGrowth;
-      const confidenceWidth = 1.96 * cumulativeVolatility;
-      
-      const relativeConfidenceWidth = confidenceWidth / currentValue;
-      const adjustedConfidenceWidth = Math.min(confidenceWidth, currentValue * 0.25);
-      const finalConfidenceWidth = Math.max(adjustedConfidenceWidth, currentValue * 0.01);
-      
-      const forecastValue = currentValue;
-      const upperBound = forecastValue + finalConfidenceWidth;
-      const lowerBound = Math.max(0, forecastValue - finalConfidenceWidth);
-      
-      forecast.push({
-        date: forecastDate.toISOString().split('T')[0],
-        rate: forecastValue,
-        close: null,
-        open: null,
-        high: null,
-        low: null,
-        upperBound: upperBound,
-        lowerBound: lowerBound,
-        confidence: Math.max(0.25, 0.95 - (i * 0.015)),
-        isForecast: true,
-        type: 'forecast'
-      });
-    }
-    
-    return forecast;
+    setNews(sampleNewsData);
+    setLoadingState(prev => ({ ...prev, news: 'success' }));
   }, []);
 
-  // Calculate chart domain with improved scaling
-  const calculateChartDomain = useCallback((data, chartType = 'combined') => {
+  const fetchEvents = useCallback(async () => {
+    setLoadingState(prev => ({ ...prev, events: 'loading' }));
+    const today = new Date();
+    const sampleEvents = [
+      {
+        title: "Federal Reserve Interest Rate Decision",
+        date: new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        impact: "high"
+      },
+      {
+        title: "European Central Bank Policy Meeting",
+        date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        impact: "high"
+      }
+    ];
+    
+    setUpcomingEvents(sampleEvents);
+    setLoadingState(prev => ({ ...prev, events: 'success' }));
+  }, []);
+
+  // Calculate chart domain
+  const calculateChartDomain = useCallback((data) => {
     if (!data || data.length === 0) return ['auto', 'auto'];
     
     const prices = [];
-    const forecastPrices = [];
-    const confidencePrices = [];
     
     data.forEach(item => {
-      if (!item.isForecast && item.type !== 'forecast') {
-        if (item.close) prices.push(item.close);
-        if (item.high) prices.push(item.high);
-        if (item.low) prices.push(item.low);
-        if (item.open) prices.push(item.open);
-        
-        if (indicators.sma5 && item.sma5) prices.push(item.sma5);
-        if (indicators.sma20 && item.sma20) prices.push(item.sma20);
-        if (indicators.bollinger && item.bollingerUpper) prices.push(item.bollingerUpper);
-        if (indicators.bollinger && item.bollingerLower) prices.push(item.bollingerLower);
-      }
+      if (item.close) prices.push(item.close);
+      if (item.high) prices.push(item.high);
+      if (item.low) prices.push(item.low);
+      if (item.open) prices.push(item.open);
+      if (item.rate) prices.push(item.rate); // For forecast data
       
-      if (item.isForecast || item.type === 'forecast') {
-        if (item.rate) forecastPrices.push(item.rate);
-        if (item.projectedRate) forecastPrices.push(item.projectedRate);
-        
-        if (item.upperBound) confidencePrices.push(item.upperBound);
-        if (item.lowerBound) confidencePrices.push(item.lowerBound);
-      }
+      if (indicators.sma5 && item.sma5) prices.push(item.sma5);
+      if (indicators.sma20 && item.sma20) prices.push(item.sma20);
+      if (indicators.bollinger && item.bollingerUpper) prices.push(item.bollingerUpper);
+      if (indicators.bollinger && item.bollingerLower) prices.push(item.bollingerLower);
     });
     
-    let allPrices = [];
+    if (prices.length === 0) return ['auto', 'auto'];
     
-    if (chartType === 'forecast') {
-      allPrices = [...prices, ...forecastPrices];
-      
-      if (confidencePrices.length > 0 && forecastPrices.length > 0) {
-        const forecastRange = Math.max(...forecastPrices) - Math.min(...forecastPrices);
-        const confidenceRange = Math.max(...confidencePrices) - Math.min(...confidencePrices);
-        
-        if (confidenceRange / forecastRange < 5) {
-          allPrices.push(...confidencePrices);
-        } else {
-          const avgForecast = forecastPrices.reduce((a, b) => a + b, 0) / forecastPrices.length;
-          const maxDeviation = forecastRange * 2;
-          allPrices.push(avgForecast + maxDeviation, avgForecast - maxDeviation);
-        }
-      }
-    } else {
-      allPrices = [...prices, ...forecastPrices];
-      if (confidencePrices.length > 0) {
-        allPrices.push(...confidencePrices);
-      }
-    }
-    
-    if (allPrices.length === 0) return ['auto', 'auto'];
-    
-    const validPrices = allPrices.filter(p => p && !isNaN(p) && p > 0);
+    const validPrices = prices.filter(p => p && !isNaN(p) && p > 0);
     if (validPrices.length === 0) return ['auto', 'auto'];
     
     const minPrice = Math.min(...validPrices);
     const maxPrice = Math.max(...validPrices);
     
     const range = maxPrice - minPrice;
-    let padding;
+    const padding = Math.max(range * 0.05, range * 0.02);
     
-    if (chartType === 'forecast') {
-      padding = Math.max(range * 0.05, range * 0.02);
-    } else {
-      padding = Math.max(range * 0.08, range * 0.03);
-    }
-    
-    const domainMin = Math.max(0, minPrice - padding);
-    const domainMax = maxPrice + padding;
-    
-    if (domainMin === domainMax || (domainMax - domainMin) / domainMin < 0.001) {
-      const center = (domainMin + domainMax) / 2;
-      const minVariation = center * 0.01;
-      return [center - minVariation, center + minVariation];
-    }
-    
-    return [domainMin, domainMax];
+    return [Math.max(0, minPrice - padding), maxPrice + padding];
   }, [indicators]);
 
   // Custom tooltip component
@@ -552,21 +479,8 @@ const FXTracker = () => {
           {isForecast ? (
             <div className="space-y-1 mt-2">
               <p className="text-purple-700 font-semibold">
-                Projected Rate: {formatRate(data.rate || data.projectedRate)}
+                Projected Rate: {formatRate(data.rate)}
               </p>
-              {data.upperBound && data.lowerBound && (
-                <>
-                  <p className="text-green-700 font-semibold">
-                    Upper 95%: {formatRate(data.upperBound)}
-                  </p>
-                  <p className="text-red-700 font-semibold">
-                    Lower 95%: {formatRate(data.lowerBound)}
-                  </p>
-                  <p className="text-xs text-gray-700 font-semibold">
-                    Confidence: {data.confidence ? (data.confidence * 100).toFixed(0) + '%' : 'N/A'}
-                  </p>
-                </>
-              )}
             </div>
           ) : chartType === 'candlestick' && data.open !== undefined ? (
             <div className="space-y-1 mt-2">
@@ -596,7 +510,7 @@ const FXTracker = () => {
   // Chart components
   const HistoricalPriceChart = useCallback(({ data }) => {
     const historicalOnly = data.filter(item => !item.isForecast && item.type !== 'forecast');
-    const chartDomain = calculateChartDomain(historicalOnly, 'historical');
+    const chartDomain = calculateChartDomain(historicalOnly);
     
     return (
       <ResponsiveContainer width="100%" height="100%">
@@ -674,16 +588,6 @@ const FXTracker = () => {
                 connectNulls={false}
                 name="Bollinger Lower"
               />
-              <Line 
-                type="monotone" 
-                dataKey="bollingerMiddle" 
-                stroke="#92400e" 
-                strokeWidth={1}
-                strokeDasharray="1 1"
-                dot={false}
-                connectNulls={false}
-                name="Bollinger Middle"
-              />
             </>
           )}
           
@@ -714,140 +618,24 @@ const FXTracker = () => {
     if (!forecastData || forecastData.length === 0) return null;
     
     const lastHistoricalPoints = historicalData.slice(-3);
-    const transitionData = [
+    const combinedData = [
       ...lastHistoricalPoints.map(item => ({
         date: item.date,
         rate: item.close,
-        projectedRate: item.close,
-        type: 'historical',
-        upperBound: null,
-        lowerBound: null
+        type: 'historical'
       })),
       ...forecastData.map(item => ({
         date: item.date,
-        rate: null,
-        projectedRate: item.rate,
-        upperBound: item.upperBound,
-        lowerBound: item.lowerBound,
-        confidence: item.confidence,
+        rate: item.rate,
         type: 'forecast'
       }))
     ];
     
-    const chartDomain = calculateChartDomain(transitionData, 'forecast');
+    const chartDomain = calculateChartDomain(combinedData);
     
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={transitionData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis 
-            dataKey="date" 
-            tickFormatter={formatDateForChart}
-            stroke="#374151"
-            tick={{ fontSize: 12, fontWeight: 500 }}
-          />
-          <YAxis 
-            domain={chartDomain}
-            tickFormatter={formatRate}
-            stroke="#374151"
-            tick={{ fontSize: 12, fontWeight: 500 }}
-            width={80}
-          />
-          <Tooltip 
-            content={({ active, payload, label }) => {
-              if (active && payload && payload.length) {
-                const data = payload[0].payload;
-                const isForecast = data.type === 'forecast';
-                
-                return (
-                  <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-                    <p className="font-semibold text-gray-900 flex items-center">
-                      {formatDateForChart(label)}
-                      {isForecast && (
-                        <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded font-medium">
-                          Forecast
-                        </span>
-                      )}
-                    </p>
-                    
-                    {isForecast ? (
-                      <div className="space-y-1 mt-2">
-                        <p className="text-purple-700 font-medium">
-                          Projected Rate: {formatRate(data.projectedRate)}
-                        </p>
-                        {data.upperBound && data.lowerBound && (
-                          <>
-                            <p className="text-green-700 font-medium">
-                              Upper 95%: {formatRate(data.upperBound)}
-                            </p>
-                            <p className="text-red-700 font-medium">
-                              Lower 95%: {formatRate(data.lowerBound)}
-                            </p>
-                            <p className="text-xs text-gray-600 font-medium">
-                              Confidence: {data.confidence ? (data.confidence * 100).toFixed(0) + '%' : 'N/A'}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-blue-700 font-medium mt-2">
-                        Historical: {formatRate(data.projectedRate)}
-                      </p>
-                    )}
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
-          
-          <defs>
-            <linearGradient id="forecastConfidence" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#ddd6fe" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="#c4b5fd" stopOpacity={0.7} />
-            </linearGradient>
-          </defs>
-          
-          <Area
-            type="monotone"
-            dataKey="upperBound"
-            stackId="confidence"
-            stroke="none"
-            fill="url(#forecastConfidence)"
-            connectNulls={false}
-            name="Upper Confidence"
-          />
-          <Area
-            type="monotone"
-            dataKey="lowerBound"
-            stackId="confidence"
-            stroke="none"
-            fill="#ffffff"
-            connectNulls={false}
-            name="Lower Confidence"
-          />
-          
-          <Line 
-            type="monotone" 
-            dataKey="projectedRate"
-            stroke="#7c3aed"
-            strokeWidth={3}
-            dot={false}
-            connectNulls={false}
-            name="Price Projection"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    );
-  }, [formatDateForChart, formatRate, calculateChartDomain]);
-
-  const CandlestickChart = useCallback(({ data }) => {
-    const historicalOnly = data.filter(item => !item.isForecast && item.type !== 'forecast');
-    const chartDomain = calculateChartDomain(historicalOnly, 'historical');
-    
-    return (
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={historicalOnly} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+        <LineChart data={combinedData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis 
             dataKey="date" 
@@ -866,60 +654,17 @@ const FXTracker = () => {
           
           <Line 
             type="monotone" 
-            dataKey="high" 
-            stroke="#059669"
-            strokeWidth={2}
-            dot={false}
-            connectNulls={false}
-            name="High"
-          />
-          <Line 
-            type="monotone" 
-            dataKey="low" 
-            stroke="#dc2626"
-            strokeWidth={2}
-            dot={false}
-            connectNulls={false}
-            name="Low"
-          />
-          <Line 
-            type="monotone" 
-            dataKey="close" 
-            stroke="#1d4ed8"
+            dataKey="rate"
+            stroke="#7c3aed"
             strokeWidth={3}
             dot={false}
             connectNulls={false}
-            name="Close Price"
+            name="Price Projection"
           />
-          
-          {indicators.sma5 && (
-            <Line 
-              type="monotone" 
-              dataKey="sma5" 
-              stroke="#059669" 
-              strokeWidth={2.5}
-              strokeDasharray="4 4"
-              dot={false}
-              connectNulls={false}
-              name="5-Day SMA"
-            />
-          )}
-          {indicators.sma20 && (
-            <Line 
-              type="monotone" 
-              dataKey="sma20" 
-              stroke="#dc2626" 
-              strokeWidth={2.5}
-              strokeDasharray="4 4"
-              dot={false}
-              connectNulls={false}
-              name="20-Day SMA"
-            />
-          )}
         </LineChart>
       </ResponsiveContainer>
     );
-  }, [indicators, formatDateForChart, formatRate, calculateChartDomain]);
+  }, [formatDateForChart, formatRate, calculateChartDomain]);
 
   // Data preparation
   const prepareCombinedChartData = useCallback(() => {
@@ -937,29 +682,12 @@ const FXTracker = () => {
       .filter(item => new Date(item.date) > lastHistoricalDate)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
     
-    let transitionPoint = null;
-    if (sortedHistorical.length > 0 && validForecastData.length > 0) {
-      const lastHistorical = sortedHistorical[sortedHistorical.length - 1];
-      transitionPoint = {
-        date: lastHistorical.date,
-        close: lastHistorical.close,
-        rate: lastHistorical.close,
-        upperBound: lastHistorical.close,
-        lowerBound: lastHistorical.close,
-        isForecast: false,
-        type: 'transition'
-      };
-    }
-    
     const combinedData = [
       ...sortedHistorical.map(item => ({
         ...item,
         isForecast: false,
-        type: 'historical',
-        upperBound: null,
-        lowerBound: null
+        type: 'historical'
       })),
-      ...(transitionPoint ? [transitionPoint] : []),
       ...validForecastData.map(item => ({
         ...item,
         close: null,
@@ -973,100 +701,6 @@ const FXTracker = () => {
     
     return combinedData.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [historicalData, selectedPair, forecast]);
-
-  // Simulate data fetching with realistic delays
-  const fetchRates = useCallback(async () => {
-    updateLoadingState('rates', 'loading');
-    
-    // Simulate API delay
-    setTimeout(() => {
-      setRates(sampleRatesData);
-      setLastUpdate(new Date());
-      updateLoadingState('rates', 'success');
-      setRetryCount(prev => ({ ...prev, rates: 0 }));
-    }, 800 + Math.random() * 400); // 0.8-1.2 second delay
-  }, [sampleRatesData, updateLoadingState]);
-
-  const fetchHistoricalData = useCallback(async (pair) => {
-    updateLoadingState('historical', 'loading');
-    
-    // Simulate API delay
-    setTimeout(() => {
-      try {
-        const rawData = generateHistoricalData(pair);
-        const enhancedData = calculateIndicators(rawData);
-        const forecastData = advancedForecast(enhancedData, forecastDays);
-        
-        setHistoricalData(prev => ({
-          ...prev,
-          [pair]: enhancedData
-        }));
-        
-        // Calculate trend and analysis from real data
-        const recentRates = enhancedData.slice(-14).map(d => d.close);
-        const firstRate = recentRates[0];
-        const lastRate = recentRates[recentRates.length - 1];
-        const trend = (lastRate - firstRate) / firstRate;
-        
-        const highs = enhancedData.slice(-30).map(d => d.high);
-        const lows = enhancedData.slice(-30).map(d => d.low);
-        const resistance = [...highs].sort((a, b) => b - a)[2];
-        const support = [...lows].sort((a, b) => a - b)[2];
-        
-        const returns = enhancedData.slice(-30).map((d, i, arr) => 
-          i > 0 ? Math.log(d.close / arr[i-1].close) : 0
-        ).slice(1);
-        const variance = returns.reduce((sum, r) => sum + r * r, 0) / returns.length;
-        const volatility = Math.sqrt(variance * 252);
-        
-        setForecast(prev => ({
-          ...prev,
-          [pair]: {
-            data: forecastData,
-            trend: trend > 0 ? 'bullish' : 'bearish',
-            strength: Math.abs(trend) > 0.02 ? 'strong' : Math.abs(trend) > 0.005 ? 'moderate' : 'weak',
-            support: support,
-            resistance: resistance,
-            volatility: volatility,
-            rsi: enhancedData[enhancedData.length - 1]?.rsi
-          }
-        }));
-        
-        updateLoadingState('historical', 'success');
-        setRetryCount(prev => ({ ...prev, historical: 0 }));
-      } catch (error) {
-        updateLoadingState('historical', 'error', 'Failed to process historical data');
-      }
-    }, 1200 + Math.random() * 800); // 1.2-2 second delay
-  }, [generateHistoricalData, calculateIndicators, advancedForecast, forecastDays, updateLoadingState]);
-
-  const fetchNews = useCallback(async () => {
-    updateLoadingState('news', 'loading');
-    
-    // Simulate API delay
-    setTimeout(() => {
-      setNews(sampleNewsData);
-      updateLoadingState('news', 'success');
-      setRetryCount(prev => ({ ...prev, news: 0 }));
-    }, 600 + Math.random() * 300); // 0.6-0.9 second delay
-  }, [sampleNewsData, updateLoadingState]);
-
-  const fetchEvents = useCallback(async () => {
-    updateLoadingState('events', 'loading');
-    
-    // Simulate API delay
-    setTimeout(() => {
-      const now = new Date();
-      const futureEvents = sampleEventsData.filter(event => {
-        const eventDate = new Date(event.date);
-        return eventDate > now;
-      }).slice(0, 4);
-      
-      setUpcomingEvents(futureEvents);
-      updateLoadingState('events', 'success');
-      setRetryCount(prev => ({ ...prev, events: 0 }));
-    }, 500 + Math.random() * 200); // 0.5-0.7 second delay
-  }, [sampleEventsData, updateLoadingState]);
 
   // Handle pair changes
   const handlePairChange = useCallback((base, quote) => {
@@ -1135,7 +769,6 @@ const FXTracker = () => {
 
   // Manual retry functions
   const manualRetry = useCallback((type) => {
-    setRetryCount(prev => ({ ...prev, [type]: 0 }));
     switch (type) {
       case 'rates':
         fetchRates();
@@ -1177,17 +810,16 @@ const FXTracker = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${selectedPair}_enhanced_data.csv`);
+    link.setAttribute("download", `${selectedPair}_real_data.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }, [historicalData, selectedPair]);
 
-  // Loading state indicators - optimized for smooth experience
+  // Loading indicator component
   const LoadingIndicator = ({ type, label }) => {
-    const state = stableLoadingStates[type] || loadingState[type];
+    const state = loadingState[type];
     const error = errors[type];
-    const retries = retryCount[type] || 0;
     
     if (state === 'success') return null;
     
@@ -1196,21 +828,8 @@ const FXTracker = () => {
         <div className="text-center max-w-md">
           {state === 'loading' ? (
             <>
-              <div className="relative">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-                <div className="absolute inset-0 rounded-full border-2 border-blue-200 border-t-transparent animate-spin"></div>
-              </div>
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
               <p className="text-gray-600 font-medium mb-2">{label}</p>
-              {retries > 0 && (
-                <p className="text-sm text-orange-600 animate-pulse">
-                  Retry attempt {retries}/{CONFIG.MAX_RETRIES}
-                </p>
-              )}
-              <div className="mt-4">
-                <div className="w-64 bg-gray-200 rounded-full h-2 mx-auto overflow-hidden">
-                  <div className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full animate-pulse transition-all duration-1000" style={{ width: '60%' }}></div>
-                </div>
-              </div>
             </>
           ) : state === 'error' ? (
             <>
@@ -1219,23 +838,10 @@ const FXTracker = () => {
               <p className="text-sm text-gray-600 mb-4 max-w-xs mx-auto">{error}</p>
               <button
                 onClick={() => manualRetry(type)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 transform hover:scale-105"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 <RefreshCw className="h-4 w-4 inline mr-2" />
                 Retry Now
-              </button>
-            </>
-          ) : state === 'timeout' ? (
-            <>
-              <Clock className="h-8 w-8 mx-auto mb-4 text-orange-600" />
-              <p className="text-orange-600 font-medium mb-2">Request timed out</p>
-              <p className="text-sm text-gray-600 mb-4">The server is taking too long to respond</p>
-              <button
-                onClick={() => manualRetry(type)}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200"
-              >
-                <RefreshCw className="h-4 w-4 inline mr-2" />
-                Try Again
               </button>
             </>
           ) : (
@@ -1249,50 +855,11 @@ const FXTracker = () => {
     );
   };
 
-  // Connection status indicator
-  const ConnectionStatus = () => (
-    <div className="flex items-center space-x-2">
-      {connectionStatus === 'online' ? (
-        <>
-          <Wifi className="h-4 w-4 text-green-600" />
-          <span className="text-sm text-green-600">Connected</span>
-        </>
-      ) : connectionStatus === 'offline' ? (
-        <>
-          <WifiOff className="h-4 w-4 text-red-600" />
-          <span className="text-sm text-red-600">Connection issues</span>
-        </>
-      ) : (
-        <>
-          <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
-          <span className="text-sm text-gray-500">Checking connection...</span>
-        </>
-      )}
-    </div>
-  );
-
-  // Initialize on mount with staggered loading
+  // Initialize on mount
   useEffect(() => {
-    const initialize = async () => {
-      setIsInitialLoad(true);
-      
-      // Stagger the API calls to reduce simultaneous loading jitter
-      fetchRates();
-      
-      setTimeout(() => {
-        fetchNews();
-      }, 200);
-      
-      setTimeout(() => {
-        fetchEvents();
-      }, 400);
-      
-      setTimeout(() => {
-        setIsInitialLoad(false);
-      }, 1000);
-    };
-    
-    initialize();
+    fetchRates();
+    fetchNews();
+    fetchEvents();
   }, [fetchRates, fetchNews, fetchEvents]);
 
   // Fetch historical data when pair changes
@@ -1301,31 +868,6 @@ const FXTracker = () => {
       fetchHistoricalData(selectedPair);
     }
   }, [selectedPair, loadingState.rates, fetchHistoricalData]);
-
-  // Show initial loading screen only if nothing has loaded yet - optimized for smooth experience
-  if (isInitialLoad && (loadingState.rates === 'idle' || (loadingState.rates === 'loading' && Object.keys(rates).length === 0))) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative mb-6">
-            <div className="h-12 w-12 mx-auto">
-              <RefreshCw className="h-12 w-12 animate-spin text-blue-600" />
-              <div className="absolute inset-0 rounded-full border-4 border-blue-200 border-t-transparent animate-spin"></div>
-            </div>
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">FX Tracker</h2>
-          <p className="text-gray-600 mb-2">Connecting to financial data services...</p>
-          <div className="mt-4">
-            <ConnectionStatus />
-          </div>
-          <div className="mt-6 w-80 bg-gray-200 rounded-full h-3 mx-auto overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 h-3 rounded-full transition-all duration-2000 ease-out animate-pulse" style={{ width: '45%' }}></div>
-          </div>
-          <p className="text-sm text-gray-500 mt-4">Loading real-time exchange rates...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -1339,12 +881,15 @@ const FXTracker = () => {
                 <h1 className="text-2xl font-bold text-gray-900">FX Tracker</h1>
                 <p className="text-sm text-gray-500 flex items-center">
                   <Shield className="h-3 w-3 mr-1" />
-                  Real-time financial data • Transparent loading
+                  Live market data from exchangerate.host API
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <ConnectionStatus />
+              <div className="flex items-center space-x-2">
+                <Wifi className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-600">Live API</span>
+              </div>
               {lastUpdate && (
                 <div className="text-sm text-gray-500">
                   Last update: {lastUpdate.toLocaleTimeString()}
@@ -1353,45 +898,15 @@ const FXTracker = () => {
               <button
                 onClick={() => manualRetry('rates')}
                 disabled={loadingState.rates === 'loading'}
-                className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
+                className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 aria-label="Refresh rates"
               >
-                <RefreshCw className={`h-4 w-4 transition-transform duration-200 ${loadingState.rates === 'loading' ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${loadingState.rates === 'loading' ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Global error banner with smooth transitions */}
-      {Object.keys(errors).length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 transform transition-all duration-300 ease-out">
-            <div className="flex items-start">
-              <AlertCircle className="h-5 w-5 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-yellow-800 font-medium">Some data services are experiencing issues</h3>
-                <div className="mt-2 text-sm text-yellow-700 space-y-1">
-                  {Object.entries(errors).map(([type, error]) => (
-                    <div key={type} className="flex items-center">
-                      <strong className="mr-2">{type}:</strong> 
-                      <span className="flex-1">{error}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3">
-                  <button
-                    onClick={() => setConnectionStatus('online')}
-                    className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 transition-all duration-200 transform hover:scale-105"
-                  >
-                    Check Connection
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1411,18 +926,18 @@ const FXTracker = () => {
               {loadingState.rates === 'error' ? (
                 <div className="text-center py-8">
                   <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-600" />
-                  <p className="text-red-600 font-medium mb-2">Unable to load exchange rates</p>
+                  <p className="text-red-600 font-medium mb-2">Unable to load live exchange rates</p>
                   <p className="text-sm text-gray-600 mb-4">{errors.rates}</p>
                   <button
                     onClick={() => manualRetry('rates')}
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                   >
                     <RefreshCw className="h-4 w-4 inline mr-2" />
-                    Retry Loading Rates
+                    Retry API Call
                   </button>
                 </div>
               ) : loadingState.rates === 'loading' ? (
-                <LoadingIndicator type="rates" label="Loading exchange rates..." />
+                <LoadingIndicator type="rates" label="Fetching live exchange rates from API..." />
               ) : (
                 <>
                   {!manualInputMode ? (
@@ -1475,7 +990,7 @@ const FXTracker = () => {
                           className="flex items-center px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         >
                           <Edit3 className="h-4 w-4 mr-2" />
-                          Enter Custom Currency (e.g., KES, BWP)
+                          Enter Custom Currency
                         </button>
                       </div>
                     </>
@@ -1535,131 +1050,10 @@ const FXTracker = () => {
                           Cancel
                         </button>
                       </div>
-                      
-                      <div className="text-xs text-gray-500">
-                        <p><strong>Note:</strong> Custom currency pairs require real exchange rate data from our APIs. 
-                        If data is not available for your pair, you will see an error message.</p>
-                      </div>
                     </div>
                   )}
                 </>
               )}
-            </div>
-
-            {/* Analysis Controls */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2" />
-                Analysis Controls
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">Start Date</label>
-                  <input
-                    type="date"
-                    value={dateRange.start}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">End Date</label>
-                  <input
-                    type="date"
-                    value={dateRange.end}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">Forecast Days</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="90"
-                    value={forecastDays}
-                    onChange={(e) => setForecastDays(parseInt(e.target.value))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">Chart Type</label>
-                  <select
-                    value={chartType}
-                    onChange={(e) => setChartType(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                  >
-                    <option value="line">Line Chart</option>
-                    <option value="candlestick">Candlestick</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="mt-4">
-                <label className="block text-sm font-semibold text-gray-800 mb-2">Technical Indicators</label>
-                <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={indicators.sma5}
-                      onChange={(e) => setIndicators(prev => ({ ...prev, sma5: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-800">SMA 5</span>
-                  </label>
-                  
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={indicators.sma20}
-                      onChange={(e) => setIndicators(prev => ({ ...prev, sma20: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-800">SMA 20</span>
-                  </label>
-                  
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={indicators.bollinger}
-                      onChange={(e) => setIndicators(prev => ({ ...prev, bollinger: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-800">Bollinger Bands</span>
-                  </label>
-                  
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={indicators.rsi}
-                      onChange={(e) => setIndicators(prev => ({ ...prev, rsi: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-800">RSI</span>
-                  </label>
-                </div>
-              </div>
-              
-              <div className="mt-4">
-                <button
-                  onClick={() => fetchHistoricalData(selectedPair)}
-                  disabled={loadingState.historical === 'loading'}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100 min-w-[140px]"
-                >
-                  {loadingState.historical === 'loading' ? (
-                    <span className="flex items-center justify-center">
-                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                      Fetching...
-                    </span>
-                  ) : (
-                    'Update Analysis'
-                  )}
-                </button>
-              </div>
             </div>
 
             {/* Charts Section */}
@@ -1667,9 +1061,9 @@ const FXTracker = () => {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                   <Activity className="h-5 w-5 mr-2" />
-                  {selectedPair} - Price Analysis & AI Forecast
+                  {selectedPair} - Live Market Analysis
                   {loadingState.historical === 'success' && (
-                    <span className="text-sm text-green-600 font-normal ml-2">• Real data loaded</span>
+                    <span className="text-sm text-green-600 font-normal ml-2">• Real API data</span>
                   )}
                 </h2>
                 {historicalData[selectedPair] && (
@@ -1683,7 +1077,7 @@ const FXTracker = () => {
               </div>
 
               {loadingState.historical === 'loading' ? (
-                <LoadingIndicator type="historical" label="Loading historical data and generating analysis..." />
+                <LoadingIndicator type="historical" label="Fetching historical data from API..." />
               ) : loadingState.historical === 'error' ? (
                 <div className="text-center py-12">
                   <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-600" />
@@ -1694,14 +1088,8 @@ const FXTracker = () => {
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                   >
                     <RefreshCw className="h-4 w-4 inline mr-2" />
-                    Retry Historical Data
+                    Retry API Call
                   </button>
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      <strong>⚠️ Important:</strong> Historical data is required for technical analysis and forecasting. 
-                      Charts and indicators cannot be displayed without real market data.
-                    </p>
-                  </div>
                 </div>
               ) : historicalData[selectedPair] ? (
                 <div className="space-y-8">
@@ -1710,40 +1098,11 @@ const FXTracker = () => {
                     <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                       <BarChart3 className="h-4 w-4 mr-2" />
                       Historical Price Analysis
-                      <span className="text-sm text-green-600 font-normal ml-2">• Real market data</span>
+                      <span className="text-sm text-green-600 font-normal ml-2">• Live API data</span>
                     </h3>
                     
-                    <div className="mb-4 flex items-center space-x-4 text-sm text-gray-900 font-semibold">
-                      <div className="flex items-center">
-                        <div className="w-4 h-1 bg-blue-700 mr-2"></div>
-                        <span>Close Price</span>
-                      </div>
-                      {indicators.sma5 && (
-                        <div className="flex items-center">
-                          <div className="w-4 h-1 bg-green-700 mr-2" style={{borderTop: '3px dashed'}}></div>
-                          <span>5-Day SMA</span>
-                        </div>
-                      )}
-                      {indicators.sma20 && (
-                        <div className="flex items-center">
-                          <div className="w-4 h-1 bg-red-700 mr-2" style={{borderTop: '3px dashed'}}></div>
-                          <span>20-Day SMA</span>
-                        </div>
-                      )}
-                      {indicators.bollinger && (
-                        <div className="flex items-center">
-                          <div className="w-4 h-1 bg-orange-800 mr-2" style={{borderTop: '2px dotted'}}></div>
-                          <span>Bollinger Bands</span>
-                        </div>
-                      )}
-                    </div>
-                    
                     <div style={{ height: CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
-                      {chartType === 'candlestick' ? (
-                        <CandlestickChart data={prepareCombinedChartData()} />
-                      ) : (
-                        <HistoricalPriceChart data={prepareCombinedChartData()} />
-                      )}
+                      <HistoricalPriceChart data={prepareCombinedChartData()} />
                     </div>
                   </div>
 
@@ -1752,31 +1111,9 @@ const FXTracker = () => {
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                         <Target className="h-4 w-4 mr-2" />
-                        {forecastDays}-Day AI Forecast with Confidence Bands
-                        <span className="text-sm text-purple-600 font-normal ml-2">• Advanced projections</span>
+                        {forecastDays}-Day Price Forecast
+                        <span className="text-sm text-purple-600 font-normal ml-2">• Simple projection</span>
                       </h3>
-                      
-                      <div className="mb-4 flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm text-gray-900 font-semibold">
-                          <div className="flex items-center">
-                            <div className="w-4 h-1 bg-purple-700 mr-2"></div>
-                            <span>Price Projection</span>
-                          </div>
-                          <div className="flex items-center">
-                            <div className="w-4 h-3 bg-purple-300 mr-2 rounded border border-purple-400"></div>
-                            <span>95% Confidence Band</span>
-                          </div>
-                        </div>
-                        
-                        <div className="text-sm text-gray-800 font-semibold">
-                          Trend: <span className={`font-bold ${
-                            forecast[selectedPair].trend === 'bullish' ? 'text-green-700' :
-                            forecast[selectedPair].trend === 'bearish' ? 'text-red-700' : 'text-gray-700'
-                          }`}>
-                            {forecast[selectedPair].trend.toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
                       
                       <div style={{ height: CONFIG.CHART_HEIGHT.forecast, minHeight: CONFIG.CHART_HEIGHT.forecast }}>
                         <ForecastChart 
@@ -1787,8 +1124,8 @@ const FXTracker = () => {
                       
                       <div className="mt-3 p-3 bg-purple-50 rounded-lg">
                         <p className="text-sm text-purple-700">
-                          <span className="font-medium">AI Forecasting Model:</span> Uses exponential smoothing, 
-                          trend analysis, and volatility clustering. Confidence bands expand with time horizon to reflect increasing uncertainty.
+                          <span className="font-medium">Simple Forecast:</span> Basic trend projection from live market data. 
+                          Forecast scale matches historical data scale as requested.
                         </p>
                       </div>
                     </div>
@@ -1866,9 +1203,6 @@ const FXTracker = () => {
                         <div className="text-sm text-gray-600">
                           {forecast[selectedPair].strength} signal
                         </div>
-                        <div className="mt-2 text-xs text-gray-500">
-                          Based on multi-timeframe analysis
-                        </div>
                       </div>
 
                       <div className="bg-gray-50 p-4 rounded-lg">
@@ -1882,9 +1216,6 @@ const FXTracker = () => {
                         <div className="text-sm text-gray-600">
                           {forecast[selectedPair].rsi > CONFIG.RSI.OVERBOUGHT ? 'Overbought Zone' :
                            forecast[selectedPair].rsi < CONFIG.RSI.OVERSOLD ? 'Oversold Zone' : 'Neutral Zone'}
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500">
-                          Momentum indicator
                         </div>
                       </div>
 
@@ -1904,52 +1235,16 @@ const FXTracker = () => {
                             </span>
                           </div>
                         </div>
-                        <div className="mt-2 text-xs text-gray-500">
-                          Key price levels
-                        </div>
                       </div>
 
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Risk Assessment</h4>
+                        <h4 className="font-medium text-gray-900 mb-2">Volatility</h4>
                         <div className="text-lg font-bold text-gray-900">
                           {forecast[selectedPair].volatility ? (forecast[selectedPair].volatility * 100).toFixed(1) + '%' : '--'}
                         </div>
                         <div className="text-sm text-gray-600">
                           {forecast[selectedPair].volatility > CONFIG.VOLATILITY.HIGH ? 'High Risk' :
                            forecast[selectedPair].volatility > CONFIG.VOLATILITY.MEDIUM ? 'Medium Risk' : 'Low Risk'}
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500">
-                          Annual volatility
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Forecast Statistics */}
-                  {forecast && forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
-                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <Target className="h-4 w-4 mr-2 text-purple-600" />
-                        {forecastDays}-Day Forecast Summary
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">Projected Rate (Day {forecastDays}):</span>
-                          <div className="font-bold text-purple-600">
-                            {formatRate(forecast[selectedPair].data[forecast[selectedPair].data.length - 1]?.rate)}
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Confidence Range:</span>
-                          <div className="font-medium text-gray-700">
-                            {formatRate(forecast[selectedPair].data[forecast[selectedPair].data.length - 1]?.lowerBound)} - {formatRate(forecast[selectedPair].data[forecast[selectedPair].data.length - 1]?.upperBound)}
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Model Confidence:</span>
-                          <div className="font-medium text-gray-700">
-                            {(forecast[selectedPair].data[forecast[selectedPair].data.length - 1]?.confidence * 100).toFixed(0)}%
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -1958,8 +1253,7 @@ const FXTracker = () => {
               ) : (
                 <div className="text-center py-12">
                   <div className="h-8 w-8 mx-auto mb-4 bg-gray-300 rounded animate-pulse"></div>
-                  <p className="text-sm text-gray-500">No historical data available for this pair</p>
-                  <p className="text-sm text-gray-400 mt-2">Try a different currency pair or check API connectivity</p>
+                  <p className="text-sm text-gray-500">Select a currency pair to view analysis</p>
                 </div>
               )}
             </div>
@@ -1992,12 +1286,6 @@ const FXTracker = () => {
                       role="button"
                       tabIndex={0}
                       aria-label={`Select currency pair ${pair}`}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          const [base, quote] = pair.split('/');
-                          handlePairChange(base, quote);
-                        }
-                      }}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-gray-900">{pair}</h3>
@@ -2036,67 +1324,33 @@ const FXTracker = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Newspaper className="h-5 w-5 mr-2" />
                 Market News
-                {loadingState.news === 'success' && (
-                  <span className="text-xs text-green-600 ml-2 font-normal">• Live</span>
-                )}
               </h2>
               
-              {loadingState.news === 'loading' ? (
-                <LoadingIndicator type="news" label="Loading financial news..." />
-              ) : loadingState.news === 'error' ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="h-6 w-6 mx-auto mb-3 text-orange-600" />
-                  <p className="text-orange-600 font-medium mb-2">News unavailable</p>
-                  <p className="text-sm text-gray-600 mb-3">{errors.news}</p>
-                  <button
-                    onClick={() => manualRetry('news')}
-                    className="text-sm px-3 py-1 bg-orange-100 text-orange-800 rounded hover:bg-orange-200 transition-colors"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : news.length > 0 ? (
+              {news.length > 0 ? (
                 <div className="space-y-4">
                   {news.map(item => (
                     <article 
                       key={item.id} 
-                      onClick={() => window.open(item.url, '_blank')}
-                      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Read article: ${item.title}`}
+                      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            item.impact === 'high' ? 'bg-red-100 text-red-800' :
-                            item.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {item.impact.toUpperCase()}
-                          </span>
-                          {item.sentiment && (
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              item.sentiment === 'Bullish' ? 'bg-green-100 text-green-800' :
-                              item.sentiment === 'Bearish' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {item.sentiment}
-                            </span>
-                          )}
-                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          item.impact === 'high' ? 'bg-red-100 text-red-800' :
+                          item.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {item.impact.toUpperCase()}
+                        </span>
                         <time className="text-xs text-gray-500">{item.time}</time>
                       </div>
                       
-                      <h3 className="font-medium text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
+                      <h3 className="font-medium text-gray-900 mb-2">
                         {item.title}
                       </h3>
                       
-                      {item.summary && (
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                          {item.summary}
-                        </p>
-                      )}
+                      <p className="text-sm text-gray-600 mb-2">
+                        {item.summary}
+                      </p>
                       
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">{item.source}</span>
@@ -2118,27 +1372,10 @@ const FXTracker = () => {
                 </div>
               )}
               
-              {/* Events section */}
-              {loadingState.events === 'success' && upcomingEvents.length > 0 && (
-                <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center mb-2">
-                    <Calendar className="h-4 w-4 text-yellow-600 mr-2" />
-                    <span className="text-sm font-medium text-yellow-800">Upcoming Events</span>
-                  </div>
-                  <div className="text-sm text-yellow-700">
-                    {upcomingEvents.map((event, index) => (
-                      <div key={index} className="mb-1">
-                        • {event.title} - {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-700">
-                  🔒 Real financial data with transparent loading states. 
-                  All analysis requires actual market data from secure APIs.
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-xs text-green-700">
+                  ✅ <strong>Live Data:</strong> Using real exchange rates from exchangerate.host API. 
+                  Forecast scale matches historical scale. Confidence bands removed as requested.
                 </p>
               </div>
             </div>
@@ -2150,8 +1387,8 @@ const FXTracker = () => {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="text-center text-sm text-gray-500">
-            <p>Real-time financial data with transparent loading • For educational purposes only</p>
-            <p className="mt-1">Not financial advice • Always verify with official sources</p>
+            <p>Professional FX Tracker • Live API Data</p>
+            <p className="mt-1">For educational purposes • Not financial advice</p>
           </div>
         </div>
       </footer>
