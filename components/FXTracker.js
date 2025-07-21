@@ -111,49 +111,49 @@ const FXTracker = () => {
       const isForecast = data.isForecast || data.type === 'forecast';
       
       return (
-        <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-          <p className="font-medium flex items-center">
+        <div className="bg-white p-3 border-2 border-gray-400 rounded-lg shadow-xl">
+          <p className="font-bold text-gray-900 flex items-center">
             {formatDateForChart(label)}
             {isForecast && (
-              <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">
+              <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded font-semibold">
                 Forecast
               </span>
             )}
           </p>
           
           {isForecast ? (
-            <div className="space-y-1">
-              <p style={{ color: '#7c3aed' }}>
+            <div className="space-y-1 mt-2">
+              <p className="text-purple-700 font-semibold">
                 Projected Rate: {formatRate(data.rate)}
               </p>
               {data.upperBound && data.lowerBound && (
                 <>
-                  <p style={{ color: '#059669' }}>
+                  <p className="text-green-700 font-semibold">
                     Upper 95%: {formatRate(data.upperBound)}
                   </p>
-                  <p style={{ color: '#dc2626' }}>
+                  <p className="text-red-700 font-semibold">
                     Lower 95%: {formatRate(data.lowerBound)}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-700 font-semibold">
                     Confidence: {data.confidence ? (data.confidence * 100).toFixed(0) + '%' : 'N/A'}
                   </p>
                 </>
               )}
             </div>
           ) : chartType === 'candlestick' && data.open !== undefined ? (
-            <div className="space-y-1">
-              <p style={{ color: '#2563eb' }}>Open: {formatRate(data.open)}</p>
-              <p style={{ color: '#059669' }}>High: {formatRate(data.high)}</p>
-              <p style={{ color: '#dc2626' }}>Low: {formatRate(data.low)}</p>
-              <p style={{ color: '#1f2937' }}>Close: {formatRate(data.close)}</p>
+            <div className="space-y-1 mt-2">
+              <p className="text-blue-700 font-semibold">Open: {formatRate(data.open)}</p>
+              <p className="text-green-700 font-semibold">High: {formatRate(data.high)}</p>
+              <p className="text-red-700 font-semibold">Low: {formatRate(data.low)}</p>
+              <p className="text-gray-900 font-bold">Close: {formatRate(data.close)}</p>
               {data.volume && (
-                <p style={{ color: '#6b7280' }}>Volume: {data.volume.toLocaleString()}</p>
+                <p className="text-gray-700 font-semibold">Volume: {data.volume.toLocaleString()}</p>
               )}
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-1 mt-2">
               {payload.map((entry, index) => (
-                <p key={index} style={{ color: entry.color }}>
+                <p key={index} className="font-semibold" style={{ color: entry.color }}>
                   {entry.name}: {formatRate(entry.value)}
                 </p>
               ))}
@@ -490,18 +490,18 @@ const FXTracker = () => {
     return (
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={historicalOnly} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis 
             dataKey="date" 
             tickFormatter={formatDateForChart}
-            stroke="#666"
-            tick={{ fontSize: 12 }}
+            stroke="#374151"
+            tick={{ fontSize: 12, fontWeight: 500 }}
           />
           <YAxis 
             domain={chartDomain}
             tickFormatter={formatRate}
-            stroke="#666"
-            tick={{ fontSize: 12 }}
+            stroke="#374151"
+            tick={{ fontSize: 12, fontWeight: 500 }}
             width={80}
           />
           <Tooltip content={<CustomTooltip />} />
@@ -510,8 +510,8 @@ const FXTracker = () => {
           <Line 
             type="monotone" 
             dataKey="close" 
-            stroke="#2563eb"
-            strokeWidth={2.5}
+            stroke="#1d4ed8"
+            strokeWidth={3}
             dot={false}
             connectNulls={false}
             name="Close Price"
@@ -522,9 +522,9 @@ const FXTracker = () => {
             <Line 
               type="monotone" 
               dataKey="sma5" 
-              stroke="#10b981" 
-              strokeWidth={2}
-              strokeDasharray="3 3"
+              stroke="#059669" 
+              strokeWidth={2.5}
+              strokeDasharray="4 4"
               dot={false}
               connectNulls={false}
               name="5-Day SMA"
@@ -534,9 +534,9 @@ const FXTracker = () => {
             <Line 
               type="monotone" 
               dataKey="sma20" 
-              stroke="#f59e0b" 
-              strokeWidth={2}
-              strokeDasharray="3 3"
+              stroke="#dc2626" 
+              strokeWidth={2.5}
+              strokeDasharray="4 4"
               dot={false}
               connectNulls={false}
               name="20-Day SMA"
@@ -548,7 +548,7 @@ const FXTracker = () => {
               <Line 
                 type="monotone" 
                 dataKey="bollingerUpper" 
-                stroke="#8b5cf6" 
+                stroke="#7c2d12" 
                 strokeWidth={1.5}
                 strokeDasharray="2 2"
                 dot={false}
@@ -558,7 +558,7 @@ const FXTracker = () => {
               <Line 
                 type="monotone" 
                 dataKey="bollingerLower" 
-                stroke="#8b5cf6" 
+                stroke="#7c2d12" 
                 strokeWidth={1.5}
                 strokeDasharray="2 2"
                 dot={false}
@@ -568,7 +568,7 @@ const FXTracker = () => {
               <Line 
                 type="monotone" 
                 dataKey="bollingerMiddle" 
-                stroke="#a855f7" 
+                stroke="#92400e" 
                 strokeWidth={1}
                 strokeDasharray="1 1"
                 dot={false}
@@ -582,17 +582,19 @@ const FXTracker = () => {
           {forecast && forecast[selectedPair] && forecast[selectedPair].support && (
             <ReferenceLine 
               y={forecast[selectedPair].support} 
-              stroke="#ef4444" 
-              strokeDasharray="2 2"
-              label={{ value: "Support", position: "insideTopLeft" }}
+              stroke="#dc2626" 
+              strokeWidth={2}
+              strokeDasharray="3 3"
+              label={{ value: "Support", position: "insideTopLeft", style: { fontWeight: 'bold', fill: '#dc2626' } }}
             />
           )}
           {forecast && forecast[selectedPair] && forecast[selectedPair].resistance && (
             <ReferenceLine 
               y={forecast[selectedPair].resistance} 
-              stroke="#16a34a" 
-              strokeDasharray="2 2"
-              label={{ value: "Resistance", position: "insideBottomLeft" }}
+              stroke="#059669" 
+              strokeWidth={2}
+              strokeDasharray="3 3"
+              label={{ value: "Resistance", position: "insideBottomLeft", style: { fontWeight: 'bold', fill: '#059669' } }}
             />
           )}
         </LineChart>
@@ -610,13 +612,15 @@ const FXTracker = () => {
       ...lastHistoricalPoints.map(item => ({
         date: item.date,
         rate: item.close,
+        projectedRate: item.close, // Use same value for historical
         type: 'historical',
         upperBound: null,
         lowerBound: null
       })),
       ...forecastData.map(item => ({
         date: item.date,
-        rate: item.rate,
+        rate: null, // Clear this to avoid confusion
+        projectedRate: item.rate, // This is what we want to display
         upperBound: item.upperBound,
         lowerBound: item.lowerBound,
         confidence: item.confidence,
@@ -629,18 +633,18 @@ const FXTracker = () => {
     return (
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={transitionData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis 
             dataKey="date" 
             tickFormatter={formatDateForChart}
-            stroke="#666"
-            tick={{ fontSize: 12 }}
+            stroke="#374151"
+            tick={{ fontSize: 12, fontWeight: 500 }}
           />
           <YAxis 
             domain={chartDomain}
             tickFormatter={formatRate}
-            stroke="#666"
-            tick={{ fontSize: 12 }}
+            stroke="#374151"
+            tick={{ fontSize: 12, fontWeight: 500 }}
             width={80}
           />
           <Tooltip 
@@ -651,37 +655,37 @@ const FXTracker = () => {
                 
                 return (
                   <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-                    <p className="font-medium flex items-center">
+                    <p className="font-semibold text-gray-900 flex items-center">
                       {formatDateForChart(label)}
                       {isForecast && (
-                        <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">
+                        <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded font-medium">
                           Forecast
                         </span>
                       )}
                     </p>
                     
                     {isForecast ? (
-                      <div className="space-y-1">
-                        <p style={{ color: '#7c3aed' }}>
-                          Projected Rate: {formatRate(data.rate)}
+                      <div className="space-y-1 mt-2">
+                        <p className="text-purple-700 font-medium">
+                          Projected Rate: {formatRate(data.projectedRate)}
                         </p>
                         {data.upperBound && data.lowerBound && (
                           <>
-                            <p style={{ color: '#059669' }}>
+                            <p className="text-green-700 font-medium">
                               Upper 95%: {formatRate(data.upperBound)}
                             </p>
-                            <p style={{ color: '#dc2626' }}>
+                            <p className="text-red-700 font-medium">
                               Lower 95%: {formatRate(data.lowerBound)}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-600 font-medium">
                               Confidence: {data.confidence ? (data.confidence * 100).toFixed(0) + '%' : 'N/A'}
                             </p>
                           </>
                         )}
                       </div>
                     ) : (
-                      <p style={{ color: '#2563eb' }}>
-                        Historical: {formatRate(data.rate)}
+                      <p className="text-blue-700 font-medium mt-2">
+                        Historical: {formatRate(data.projectedRate)}
                       </p>
                     )}
                   </div>
@@ -693,8 +697,8 @@ const FXTracker = () => {
           
           <defs>
             <linearGradient id="forecastConfidence" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#ddd6fe" stopOpacity={0.2} />
-              <stop offset="100%" stopColor="#c4b5fd" stopOpacity={0.6} />
+              <stop offset="0%" stopColor="#ddd6fe" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="#c4b5fd" stopOpacity={0.7} />
             </linearGradient>
           </defs>
           
@@ -718,12 +722,12 @@ const FXTracker = () => {
             name="Lower Confidence"
           />
           
-          {/* Historical continuation line */}
+          {/* Projected rate line - this should match tooltip values */}
           <Line 
             type="monotone" 
-            dataKey="rate" 
-            stroke="#2563eb"
-            strokeWidth={2.5}
+            dataKey="projectedRate"
+            stroke="#7c3aed"
+            strokeWidth={3}
             dot={false}
             connectNulls={false}
             name="Price Projection"
@@ -741,18 +745,18 @@ const FXTracker = () => {
     return (
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={historicalOnly} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis 
             dataKey="date" 
             tickFormatter={formatDateForChart}
-            stroke="#666"
-            tick={{ fontSize: 12 }}
+            stroke="#374151"
+            tick={{ fontSize: 12, fontWeight: 500 }}
           />
           <YAxis 
             domain={chartDomain}
             tickFormatter={formatRate}
-            stroke="#666"
-            tick={{ fontSize: 12 }}
+            stroke="#374151"
+            tick={{ fontSize: 12, fontWeight: 500 }}
             width={80}
           />
           <Tooltip content={<CustomTooltip />} />
@@ -761,8 +765,8 @@ const FXTracker = () => {
           <Line 
             type="monotone" 
             dataKey="high" 
-            stroke="#10b981"
-            strokeWidth={1.5}
+            stroke="#059669"
+            strokeWidth={2}
             dot={false}
             connectNulls={false}
             name="High"
@@ -770,8 +774,8 @@ const FXTracker = () => {
           <Line 
             type="monotone" 
             dataKey="low" 
-            stroke="#ef4444"
-            strokeWidth={1.5}
+            stroke="#dc2626"
+            strokeWidth={2}
             dot={false}
             connectNulls={false}
             name="Low"
@@ -779,8 +783,8 @@ const FXTracker = () => {
           <Line 
             type="monotone" 
             dataKey="close" 
-            stroke="#2563eb"
-            strokeWidth={2.5}
+            stroke="#1d4ed8"
+            strokeWidth={3}
             dot={false}
             connectNulls={false}
             name="Close Price"
@@ -791,9 +795,9 @@ const FXTracker = () => {
             <Line 
               type="monotone" 
               dataKey="sma5" 
-              stroke="#10b981" 
-              strokeWidth={1.5}
-              strokeDasharray="3 3"
+              stroke="#059669" 
+              strokeWidth={2.5}
+              strokeDasharray="4 4"
               dot={false}
               connectNulls={false}
               name="5-Day SMA"
@@ -803,9 +807,9 @@ const FXTracker = () => {
             <Line 
               type="monotone" 
               dataKey="sma20" 
-              stroke="#f59e0b" 
-              strokeWidth={1.5}
-              strokeDasharray="3 3"
+              stroke="#dc2626" 
+              strokeWidth={2.5}
+              strokeDasharray="4 4"
               dot={false}
               connectNulls={false}
               name="20-Day SMA"
@@ -1374,26 +1378,26 @@ const FXTracker = () => {
                       <span className="text-sm text-green-600 font-normal ml-2">• Real market data</span>
                     </h3>
                     
-                    <div className="mb-4 flex items-center space-x-4 text-sm">
+                    <div className="mb-4 flex items-center space-x-4 text-sm text-gray-900 font-semibold">
                       <div className="flex items-center">
-                        <div className="w-3 h-0.5 bg-blue-600 mr-2"></div>
+                        <div className="w-4 h-1 bg-blue-700 mr-2"></div>
                         <span>Close Price</span>
                       </div>
                       {indicators.sma5 && (
                         <div className="flex items-center">
-                          <div className="w-3 h-0.5 bg-green-600 mr-2" style={{borderTop: '2px dashed'}}></div>
+                          <div className="w-4 h-1 bg-green-700 mr-2" style={{borderTop: '3px dashed'}}></div>
                           <span>5-Day SMA</span>
                         </div>
                       )}
                       {indicators.sma20 && (
                         <div className="flex items-center">
-                          <div className="w-3 h-0.5 bg-yellow-600 mr-2" style={{borderTop: '2px dashed'}}></div>
+                          <div className="w-4 h-1 bg-red-700 mr-2" style={{borderTop: '3px dashed'}}></div>
                           <span>20-Day SMA</span>
                         </div>
                       )}
                       {indicators.bollinger && (
                         <div className="flex items-center">
-                          <div className="w-3 h-0.5 bg-purple-600 mr-2" style={{borderTop: '1px dotted'}}></div>
+                          <div className="w-4 h-1 bg-orange-800 mr-2" style={{borderTop: '2px dotted'}}></div>
                           <span>Bollinger Bands</span>
                         </div>
                       )}
@@ -1418,21 +1422,21 @@ const FXTracker = () => {
                       </h3>
                       
                       <div className="mb-4 flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm">
+                        <div className="flex items-center space-x-4 text-sm text-gray-900 font-semibold">
                           <div className="flex items-center">
-                            <div className="w-3 h-0.5 bg-blue-600 mr-2"></div>
+                            <div className="w-4 h-1 bg-purple-700 mr-2"></div>
                             <span>Price Projection</span>
                           </div>
                           <div className="flex items-center">
-                            <div className="w-3 h-3 bg-purple-200 mr-2 rounded"></div>
+                            <div className="w-4 h-3 bg-purple-300 mr-2 rounded border border-purple-400"></div>
                             <span>95% Confidence Band</span>
                           </div>
                         </div>
                         
-                        <div className="text-sm text-gray-600">
-                          Trend: <span className={`font-medium ${
-                            forecast[selectedPair].trend === 'bullish' ? 'text-green-600' :
-                            forecast[selectedPair].trend === 'bearish' ? 'text-red-600' : 'text-gray-600'
+                        <div className="text-sm text-gray-800 font-semibold">
+                          Trend: <span className={`font-bold ${
+                            forecast[selectedPair].trend === 'bullish' ? 'text-green-700' :
+                            forecast[selectedPair].trend === 'bearish' ? 'text-red-700' : 'text-gray-700'
                           }`}>
                             {forecast[selectedPair].trend.toUpperCase()}
                           </span>
@@ -1464,27 +1468,29 @@ const FXTracker = () => {
                       <div style={{ height: CONFIG.CHART_HEIGHT.rsi }}>
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={historicalData[selectedPair]}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                             <XAxis 
                               dataKey="date" 
                               tickFormatter={formatDateForChart}
-                              stroke="#666"
+                              stroke="#374151"
+                              tick={{ fontSize: 12, fontWeight: 500 }}
                             />
                             <YAxis 
                               domain={[0, 100]}
-                              stroke="#666"
+                              stroke="#374151"
+                              tick={{ fontSize: 12, fontWeight: 500 }}
                               tickCount={6}
                             />
                             <Tooltip 
                               content={({ active, payload, label }) => {
                                 if (active && payload && payload.length) {
                                   return (
-                                    <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-                                      <p className="font-medium">{formatDateForChart(label)}</p>
-                                      <p style={{ color: '#8b5cf6' }}>
+                                    <div className="bg-white p-3 border-2 border-gray-400 rounded-lg shadow-xl">
+                                      <p className="font-bold text-gray-900">{formatDateForChart(label)}</p>
+                                      <p className="text-purple-700 font-bold">
                                         RSI: {payload[0].value ? payload[0].value.toFixed(2) : '--'}
                                       </p>
-                                      <p className="text-xs text-gray-500 mt-1">
+                                      <p className="text-xs text-gray-800 mt-1 font-semibold">
                                         {payload[0].value > 70 ? 'Overbought' : 
                                          payload[0].value < 30 ? 'Oversold' : 'Neutral'}
                                       </p>
@@ -1497,14 +1503,14 @@ const FXTracker = () => {
                             <Line 
                               type="monotone" 
                               dataKey="rsi" 
-                              stroke="#8b5cf6" 
-                              strokeWidth={2}
+                              stroke="#7c2d12" 
+                              strokeWidth={3}
                               dot={false}
                               name="RSI"
                             />
-                            <ReferenceLine y={CONFIG.RSI.OVERBOUGHT} stroke="#ef4444" strokeDasharray="2 2" label="Overbought (70)" />
-                            <ReferenceLine y={CONFIG.RSI.OVERSOLD} stroke="#10b981" strokeDasharray="2 2" label="Oversold (30)" />
-                            <ReferenceLine y={CONFIG.RSI.NEUTRAL} stroke="#6b7280" strokeDasharray="1 1" label="Neutral (50)" />
+                            <ReferenceLine y={CONFIG.RSI.OVERBOUGHT} stroke="#dc2626" strokeWidth={2} strokeDasharray="3 3" label="Overbought (70)" />
+                            <ReferenceLine y={CONFIG.RSI.OVERSOLD} stroke="#059669" strokeWidth={2} strokeDasharray="3 3" label="Oversold (30)" />
+                            <ReferenceLine y={CONFIG.RSI.NEUTRAL} stroke="#6b7280" strokeWidth={1} strokeDasharray="2 2" label="Neutral (50)" />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
