@@ -297,6 +297,46 @@ const FXTracker = () => {
     return forecast;
   }, []);
 
+  // Utility functions for formatting - MOVED UP to be available for chart components
+  const formatRate = useCallback((rate) => {
+    if (!rate || isNaN(rate) || rate === undefined || rate === null) return '--';
+    return rate < 1 ? rate.toFixed(5) : rate.toFixed(4);
+  }, []);
+
+  const formatDateForChart = useCallback((dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }, []);
+
+  // Custom tooltip component - MOVED UP to be available for chart components
+  const CustomTooltip = useCallback(({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
+          <p className="font-medium">{formatDateForChart(label)}</p>
+          {chartType === 'candlestick' && data.open !== undefined ? (
+            <div className="space-y-1">
+              <p style={{ color: '#2563eb' }}>Open: {formatRate(data.open)}</p>
+              <p style={{ color: '#059669' }}>High: {formatRate(data.high)}</p>
+              <p style={{ color: '#dc2626' }}>Low: {formatRate(data.low)}</p>
+              <p style={{ color: '#1f2937' }}>Close: {formatRate(data.close)}</p>
+              <p style={{ color: '#6b7280' }}>Volume: {data.volume?.toLocaleString()}</p>
+            </div>
+          ) : (
+            payload.map((entry, index) => (
+              <p key={index} style={{ color: entry.color }}>
+                {entry.name}: {formatRate(entry.value)}
+              </p>
+            ))
+          )}
+        </div>
+      );
+    }
+    return null;
+  }, [chartType, formatDateForChart, formatRate]);
+
   // Combined data preparation function
   const prepareCombinedChartData = useCallback(() => {
     if (!historicalData[selectedPair]) return [];
@@ -595,7 +635,7 @@ const FXTracker = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedPair, secureApiCall, CONFIG.RATES_ENDPOINT, handleApiError]);
+  }, [selectedPair, secureApiCall, CONFIG.RATES_ENDPOINT, handleApiError, fetchHistoricalData]);
 
   // Fetch historical data through secure backend
   const fetchHistoricalData = useCallback(async (pair, retries = 0) => {
@@ -774,36 +814,6 @@ const FXTracker = () => {
     return names[code] || code;
   }, []);
 
-  // Initialize app and set up intervals
-  useEffect(() => {
-    const initialize = async () => {
-      await Promise.all([
-        fetchRates(),
-        fetchNews(),
-        fetchUpcomingEvents()
-      ]);
-    };
-    
-    initialize();
-    
-    // Update rates every 5 minutes
-    const interval = setInterval(fetchRates, CONFIG.UPDATE_INTERVAL);
-    
-    return () => clearInterval(interval);
-  }, [fetchRates, fetchNews, fetchUpcomingEvents, CONFIG.UPDATE_INTERVAL]);
-
-  // Utility functions for formatting
-  const formatRate = useCallback((rate) => {
-    if (!rate || isNaN(rate) || rate === undefined || rate === null) return '--';
-    return rate < 1 ? rate.toFixed(5) : rate.toFixed(4);
-  }, []);
-
-  const formatDateForChart = useCallback((dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  }, []);
-
   const getChangeColor = useCallback((change) => {
     if (change > 0) return 'text-green-600';
     if (change < 0) return 'text-red-600';
@@ -826,34 +836,6 @@ const FXTracker = () => {
     
     return ((currentRate - previousRate) / previousRate) * 100;
   }, [historicalData]);
-
-  // Custom tooltip component
-  const CustomTooltip = useCallback(({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-          <p className="font-medium">{formatDateForChart(label)}</p>
-          {chartType === 'candlestick' && data.open !== undefined ? (
-            <div className="space-y-1">
-              <p style={{ color: '#2563eb' }}>Open: {formatRate(data.open)}</p>
-              <p style={{ color: '#059669' }}>High: {formatRate(data.high)}</p>
-              <p style={{ color: '#dc2626' }}>Low: {formatRate(data.low)}</p>
-              <p style={{ color: '#1f2937' }}>Close: {formatRate(data.close)}</p>
-              <p style={{ color: '#6b7280' }}>Volume: {data.volume?.toLocaleString()}</p>
-            </div>
-          ) : (
-            payload.map((entry, index) => (
-              <p key={index} style={{ color: entry.color }}>
-                {entry.name}: {formatRate(entry.value)}
-              </p>
-            ))
-          )}
-        </div>
-      );
-    }
-    return null;
-  }, [chartType, formatDateForChart, formatRate]);
 
   // Export data functionality
   const exportData = useCallback(() => {
@@ -885,6 +867,24 @@ const FXTracker = () => {
     link.click();
     document.body.removeChild(link);
   }, [historicalData, selectedPair]);
+
+  // Initialize app and set up intervals
+  useEffect(() => {
+    const initialize = async () => {
+      await Promise.all([
+        fetchRates(),
+        fetchNews(),
+        fetchUpcomingEvents()
+      ]);
+    };
+    
+    initialize();
+    
+    // Update rates every 5 minutes
+    const interval = setInterval(fetchRates, CONFIG.UPDATE_INTERVAL);
+    
+    return () => clearInterval(interval);
+  }, [fetchRates, fetchNews, fetchUpcomingEvents, CONFIG.UPDATE_INTERVAL]);
 
   // Debug component for development
   const DebugInfo = () => {
@@ -925,7 +925,7 @@ const FXTracker = () => {
             <div className="flex items-center space-x-3">
               <Globe className="h-8 w-8 text-blue-600" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">FX Tracker Pro</h1>
+                <h1 className="text-2xl font-bold text-gray-900">FX Tracker</h1>
                 <p className="text-sm text-gray-500 flex items-center">
                   <Shield className="h-3 w-3 mr-1" />
                   Secure real-time rates &amp; analysis • API-secured backend
