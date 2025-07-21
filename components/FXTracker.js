@@ -45,9 +45,9 @@ const FXTracker = () => {
       
       // Chart settings
       CHART_HEIGHT: {
-        main: 320,
-        rsi: 192,
-        forecast: 256
+        main: 300,
+        rsi: 180,
+        forecast: 280
       },
       
       // Technical indicator periods
@@ -482,24 +482,14 @@ const FXTracker = () => {
     return [domainMin, domainMax];
   }, [indicators]);
 
-  // Enhanced Line Chart with Proper Forecast Integration and Expanding Confidence Bands
-  const IntegratedLineChart = useCallback(({ data }) => {
-    const chartDomain = calculateChartDomain(data);
-    
-    // Separate historical and forecast data for better rendering
-    const historicalData = data.filter(item => !item.isForecast && item.type !== 'forecast');
-    const forecastData = data.filter(item => item.isForecast || item.type === 'forecast');
-    
-    // Create confidence band data - combine both historical end and forecast start for smooth transition
-    const confidenceData = [...data].map(item => ({
-      date: item.date,
-      upperBound: item.isForecast || item.type === 'forecast' ? item.upperBound : null,
-      lowerBound: item.isForecast || item.type === 'forecast' ? item.lowerBound : null
-    }));
+  // Clean Historical Price Chart - focuses on historical data and technical indicators
+  const HistoricalPriceChart = useCallback(({ data }) => {
+    const historicalOnly = data.filter(item => !item.isForecast && item.type !== 'forecast');
+    const chartDomain = calculateChartDomain(historicalOnly);
     
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+        <LineChart data={historicalOnly} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
             dataKey="date" 
@@ -516,37 +506,7 @@ const FXTracker = () => {
           />
           <Tooltip content={<CustomTooltip />} />
           
-          {/* FIXED: Confidence bands rendered as single expanding area */}
-          <defs>
-            <linearGradient id="confidenceGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#e0f2fe" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="#bfdbfe" stopOpacity={0.5} />
-            </linearGradient>
-          </defs>
-          
-          {/* Upper confidence bound area */}
-          <Area
-            type="monotone"
-            dataKey="upperBound"
-            stackId="confidenceBand"
-            stroke="none"
-            fill="url(#confidenceGradient)"
-            connectNulls={false}
-            name="95% Confidence Band"
-          />
-          
-          {/* Lower confidence bound area - creates the band between upper and lower */}
-          <Area
-            type="monotone"
-            dataKey="lowerBound"
-            stackId="confidenceBand"
-            stroke="none"
-            fill="#ffffff"
-            connectNulls={false}
-            name=""
-          />
-          
-          {/* Historical close price line */}
+          {/* Main price line */}
           <Line 
             type="monotone" 
             dataKey="close" 
@@ -554,19 +514,7 @@ const FXTracker = () => {
             strokeWidth={2.5}
             dot={false}
             connectNulls={false}
-            name="Historical Price"
-          />
-          
-          {/* Forecast line with distinct styling */}
-          <Line 
-            type="monotone" 
-            dataKey="rate" 
-            stroke="#7c3aed"
-            strokeWidth={2.5}
-            strokeDasharray="6 4"
-            dot={false}
-            connectNulls={false}
-            name="AI Forecast"
+            name="Close Price"
           />
           
           {/* Technical indicators */}
@@ -575,7 +523,7 @@ const FXTracker = () => {
               type="monotone" 
               dataKey="sma5" 
               stroke="#10b981" 
-              strokeWidth={1.5}
+              strokeWidth={2}
               strokeDasharray="3 3"
               dot={false}
               connectNulls={false}
@@ -587,7 +535,7 @@ const FXTracker = () => {
               type="monotone" 
               dataKey="sma20" 
               stroke="#f59e0b" 
-              strokeWidth={1.5}
+              strokeWidth={2}
               strokeDasharray="3 3"
               dot={false}
               connectNulls={false}
@@ -601,7 +549,7 @@ const FXTracker = () => {
                 type="monotone" 
                 dataKey="bollingerUpper" 
                 stroke="#8b5cf6" 
-                strokeWidth={1}
+                strokeWidth={1.5}
                 strokeDasharray="2 2"
                 dot={false}
                 connectNulls={false}
@@ -611,11 +559,21 @@ const FXTracker = () => {
                 type="monotone" 
                 dataKey="bollingerLower" 
                 stroke="#8b5cf6" 
-                strokeWidth={1}
+                strokeWidth={1.5}
                 strokeDasharray="2 2"
                 dot={false}
                 connectNulls={false}
                 name="Bollinger Lower"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="bollingerMiddle" 
+                stroke="#a855f7" 
+                strokeWidth={1}
+                strokeDasharray="1 1"
+                dot={false}
+                connectNulls={false}
+                name="Bollinger Middle"
               />
             </>
           )}
@@ -626,15 +584,15 @@ const FXTracker = () => {
               y={forecast[selectedPair].support} 
               stroke="#ef4444" 
               strokeDasharray="2 2"
-              label={{ value: "Support", position: "insideTopRight" }}
+              label={{ value: "Support", position: "insideTopLeft" }}
             />
           )}
           {forecast && forecast[selectedPair] && forecast[selectedPair].resistance && (
             <ReferenceLine 
               y={forecast[selectedPair].resistance} 
-              stroke="#ef4444" 
+              stroke="#16a34a" 
               strokeDasharray="2 2"
-              label={{ value: "Resistance", position: "insideBottomRight" }}
+              label={{ value: "Resistance", position: "insideBottomLeft" }}
             />
           )}
         </LineChart>
@@ -642,35 +600,113 @@ const FXTracker = () => {
     );
   }, [indicators, formatDateForChart, formatRate, CustomTooltip, forecast, selectedPair, calculateChartDomain]);
 
-  // Fixed Candlestick Chart Component
-  const CandlestickChart = useCallback(({ data }) => {
-    const chartDomain = calculateChartDomain(data);
+  // Dedicated Forecast Chart - focuses on future projections with clean confidence bands
+  const ForecastChart = useCallback(({ historicalData, forecastData }) => {
+    if (!forecastData || forecastData.length === 0) return null;
+    
+    // Create transition data - last few historical points + all forecast
+    const lastHistoricalPoints = historicalData.slice(-3);
+    const transitionData = [
+      ...lastHistoricalPoints.map(item => ({
+        date: item.date,
+        rate: item.close,
+        type: 'historical',
+        upperBound: null,
+        lowerBound: null
+      })),
+      ...forecastData.map(item => ({
+        date: item.date,
+        rate: item.rate,
+        upperBound: item.upperBound,
+        lowerBound: item.lowerBound,
+        confidence: item.confidence,
+        type: 'forecast'
+      }))
+    ];
+    
+    const chartDomain = calculateChartDomain(transitionData);
     
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
+        <AreaChart data={transitionData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
             dataKey="date" 
             tickFormatter={formatDateForChart}
             stroke="#666"
+            tick={{ fontSize: 12 }}
           />
           <YAxis 
             domain={chartDomain}
             tickFormatter={formatRate}
             stroke="#666"
+            tick={{ fontSize: 12 }}
+            width={80}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip 
+            content={({ active, payload, label }) => {
+              if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                const isForecast = data.type === 'forecast';
+                
+                return (
+                  <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
+                    <p className="font-medium flex items-center">
+                      {formatDateForChart(label)}
+                      {isForecast && (
+                        <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">
+                          Forecast
+                        </span>
+                      )}
+                    </p>
+                    
+                    {isForecast ? (
+                      <div className="space-y-1">
+                        <p style={{ color: '#7c3aed' }}>
+                          Projected Rate: {formatRate(data.rate)}
+                        </p>
+                        {data.upperBound && data.lowerBound && (
+                          <>
+                            <p style={{ color: '#059669' }}>
+                              Upper 95%: {formatRate(data.upperBound)}
+                            </p>
+                            <p style={{ color: '#dc2626' }}>
+                              Lower 95%: {formatRate(data.lowerBound)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Confidence: {data.confidence ? (data.confidence * 100).toFixed(0) + '%' : 'N/A'}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <p style={{ color: '#2563eb' }}>
+                        Historical: {formatRate(data.rate)}
+                      </p>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            }}
+          />
           
-          {/* Forecast confidence bands */}
+          <defs>
+            <linearGradient id="forecastConfidence" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#ddd6fe" stopOpacity={0.2} />
+              <stop offset="100%" stopColor="#c4b5fd" stopOpacity={0.6} />
+            </linearGradient>
+          </defs>
+          
+          {/* Confidence band area */}
           <Area
             type="monotone"
             dataKey="upperBound"
             stackId="confidence"
             stroke="none"
-            fill="#e0f2fe"
-            fillOpacity={0.3}
+            fill="url(#forecastConfidence)"
             connectNulls={false}
+            name="Upper Confidence"
           />
           <Area
             type="monotone"
@@ -678,16 +714,55 @@ const FXTracker = () => {
             stackId="confidence"
             stroke="none"
             fill="#ffffff"
-            fillOpacity={0.8}
             connectNulls={false}
+            name="Lower Confidence"
           />
+          
+          {/* Historical continuation line */}
+          <Line 
+            type="monotone" 
+            dataKey="rate" 
+            stroke="#2563eb"
+            strokeWidth={2.5}
+            dot={false}
+            connectNulls={false}
+            name="Price Projection"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  }, [formatDateForChart, formatRate, calculateChartDomain]);
+
+  // Fixed Candlestick Chart Component
+  const CandlestickChart = useCallback(({ data }) => {
+    const historicalOnly = data.filter(item => !item.isForecast && item.type !== 'forecast');
+    const chartDomain = calculateChartDomain(historicalOnly);
+    
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={historicalOnly} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="date" 
+            tickFormatter={formatDateForChart}
+            stroke="#666"
+            tick={{ fontSize: 12 }}
+          />
+          <YAxis 
+            domain={chartDomain}
+            tickFormatter={formatRate}
+            stroke="#666"
+            tick={{ fontSize: 12 }}
+            width={80}
+          />
+          <Tooltip content={<CustomTooltip />} />
           
           {/* Candlestick representation using lines */}
           <Line 
             type="monotone" 
             dataKey="high" 
             stroke="#10b981"
-            strokeWidth={1}
+            strokeWidth={1.5}
             dot={false}
             connectNulls={false}
             name="High"
@@ -696,7 +771,7 @@ const FXTracker = () => {
             type="monotone" 
             dataKey="low" 
             stroke="#ef4444"
-            strokeWidth={1}
+            strokeWidth={1.5}
             dot={false}
             connectNulls={false}
             name="Low"
@@ -705,22 +780,10 @@ const FXTracker = () => {
             type="monotone" 
             dataKey="close" 
             stroke="#2563eb"
-            strokeWidth={2}
+            strokeWidth={2.5}
             dot={false}
             connectNulls={false}
             name="Close Price"
-          />
-          
-          {/* Forecast line */}
-          <Line 
-            type="monotone" 
-            dataKey="rate" 
-            stroke="#7c3aed"
-            strokeWidth={2.5}
-            strokeDasharray="6 4"
-            dot={false}
-            connectNulls={false}
-            name="Forecast"
           />
           
           {/* Technical indicators */}
@@ -1285,12 +1348,12 @@ const FXTracker = () => {
               </div>
             </div>
 
-            {/* INTEGRATED Charts and Analysis */}
+            {/* SEPARATED Charts for Better Clarity */}
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                   <Activity className="h-5 w-5 mr-2" />
-                  {selectedPair} - Price History, Forecast &amp; Technical Analysis
+                  {selectedPair} - Price History &amp; Technical Analysis
                 </h2>
                 <button
                   onClick={exportData}
@@ -1302,58 +1365,95 @@ const FXTracker = () => {
               </div>
 
               {historicalData[selectedPair] ? (
-                <div className="space-y-6">
-                  {/* Main Integrated Chart with Forecast */}
+                <div className="space-y-8">
+                  {/* Historical Price Chart */}
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                      <Target className="h-4 w-4 mr-2" />
-                      Integrated Price Analysis with {forecastDays}-Day Advanced Forecast
-                      <span className="text-sm text-green-600 font-normal ml-2">• Real data + AI forecast</span>
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Historical Price Analysis
+                      <span className="text-sm text-green-600 font-normal ml-2">• Real market data</span>
                     </h3>
                     
-                    <div className="mb-4 flex items-center justify-between">
-                      <div className="flex items-center space-x-4 text-sm">
-                        <div className="flex items-center">
-                          <div className="w-3 h-0.5 bg-blue-600 mr-2"></div>
-                          <span>Historical Price</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-0.5 bg-purple-600 mr-2" style={{borderTop: '2px dashed'}}></div>
-                          <span>AI Forecast</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-blue-100 mr-2"></div>
-                          <span>95% Confidence Band</span>
-                        </div>
+                    <div className="mb-4 flex items-center space-x-4 text-sm">
+                      <div className="flex items-center">
+                        <div className="w-3 h-0.5 bg-blue-600 mr-2"></div>
+                        <span>Close Price</span>
                       </div>
+                      {indicators.sma5 && (
+                        <div className="flex items-center">
+                          <div className="w-3 h-0.5 bg-green-600 mr-2" style={{borderTop: '2px dashed'}}></div>
+                          <span>5-Day SMA</span>
+                        </div>
+                      )}
+                      {indicators.sma20 && (
+                        <div className="flex items-center">
+                          <div className="w-3 h-0.5 bg-yellow-600 mr-2" style={{borderTop: '2px dashed'}}></div>
+                          <span>20-Day SMA</span>
+                        </div>
+                      )}
+                      {indicators.bollinger && (
+                        <div className="flex items-center">
+                          <div className="w-3 h-0.5 bg-purple-600 mr-2" style={{borderTop: '1px dotted'}}></div>
+                          <span>Bollinger Bands</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ height: CONFIG.CHART_HEIGHT.main }}>
+                      {chartType === 'candlestick' ? (
+                        <CandlestickChart data={prepareCombinedChartData()} />
+                      ) : (
+                        <HistoricalPriceChart data={prepareCombinedChartData()} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Forecast Chart */}
+                  {forecast && forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                        <Target className="h-4 w-4 mr-2" />
+                        {forecastDays}-Day AI Forecast with Confidence Bands
+                        <span className="text-sm text-purple-600 font-normal ml-2">• Advanced projections</span>
+                      </h3>
                       
-                      {forecast && forecast[selectedPair] && (
+                      <div className="mb-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-4 text-sm">
+                          <div className="flex items-center">
+                            <div className="w-3 h-0.5 bg-blue-600 mr-2"></div>
+                            <span>Price Projection</span>
+                          </div>
+                          <div className="flex items-center">
+                            <div className="w-3 h-3 bg-purple-200 mr-2 rounded"></div>
+                            <span>95% Confidence Band</span>
+                          </div>
+                        </div>
+                        
                         <div className="text-sm text-gray-600">
-                          Forecast Trend: <span className={`font-medium ${
+                          Trend: <span className={`font-medium ${
                             forecast[selectedPair].trend === 'bullish' ? 'text-green-600' :
                             forecast[selectedPair].trend === 'bearish' ? 'text-red-600' : 'text-gray-600'
                           }`}>
                             {forecast[selectedPair].trend.toUpperCase()}
                           </span>
                         </div>
-                      )}
+                      </div>
+                      
+                      <div style={{ height: CONFIG.CHART_HEIGHT.forecast }}>
+                        <ForecastChart 
+                          historicalData={historicalData[selectedPair]} 
+                          forecastData={forecast[selectedPair].data} 
+                        />
+                      </div>
+                      
+                      <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+                        <p className="text-sm text-purple-700">
+                          <span className="font-medium">AI Forecasting Model:</span> Uses exponential smoothing, 
+                          trend analysis, and volatility clustering. Confidence bands expand with time horizon to reflect increasing uncertainty.
+                        </p>
+                      </div>
                     </div>
-                    
-                    <div style={{ height: CONFIG.CHART_HEIGHT.main + 50 }}>
-                      {chartType === 'candlestick' ? (
-                        <CandlestickChart data={prepareCombinedChartData()} />
-                      ) : (
-                        <IntegratedLineChart data={prepareCombinedChartData()} />
-                      )}
-                    </div>
-                    
-                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-blue-700">
-                        <span className="font-medium">Advanced AI Forecasting:</span> Uses exponential smoothing with trend analysis, 
-                        pattern recognition, mean reversion, and volatility clustering. Confidence bands show 95% probability range.
-                      </p>
-                    </div>
-                  </div>
+                  )}
 
                   {/* RSI Chart */}
                   {indicators.rsi && (
