@@ -14,7 +14,7 @@ const FXTracker = () => {
   const [news, setNews] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   
-  // Loading and error states
+  // Loading and error states with debouncing
   const [loadingState, setLoadingState] = useState({
     rates: 'idle', // 'idle', 'loading', 'success', 'error', 'timeout'
     historical: 'idle',
@@ -25,6 +25,8 @@ const FXTracker = () => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [retryCount, setRetryCount] = useState({});
   const [connectionStatus, setConnectionStatus] = useState('unknown'); // 'online', 'offline', 'unknown'
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [stableLoadingStates, setStableLoadingStates] = useState({});
 
   // Enhanced features
   const [dateRange, setDateRange] = useState({
@@ -191,17 +193,38 @@ const FXTracker = () => {
     }
   }, [CONFIG.API_BASE_URL]);
 
-  // Update loading state helper
+  // Update loading state helper with debouncing
   const updateLoadingState = useCallback((type, state, error = null) => {
-    setLoadingState(prev => ({ ...prev, [type]: state }));
-    if (error) {
-      setErrors(prev => ({ ...prev, [type]: error }));
+    // Debounce rapid loading state changes to prevent jitter
+    const updateStableState = () => {
+      setLoadingState(prev => ({ ...prev, [type]: state }));
+      setStableLoadingStates(prev => ({ ...prev, [type]: state }));
+      
+      if (error) {
+        setErrors(prev => ({ ...prev, [type]: error }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[type];
+          return newErrors;
+        });
+      }
+    };
+
+    // For success states, update immediately
+    if (state === 'success') {
+      updateStableState();
+      return;
+    }
+
+    // For loading states, add a small delay to prevent jitter
+    if (state === 'loading') {
+      setLoadingState(prev => ({ ...prev, [type]: state }));
+      setTimeout(() => {
+        setStableLoadingStates(prev => ({ ...prev, [type]: state }));
+      }, 150); // Small delay to stabilize
     } else {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[type];
-        return newErrors;
-      });
+      updateStableState();
     }
   }, []);
 
@@ -1155,29 +1178,32 @@ const FXTracker = () => {
     document.body.removeChild(link);
   }, [historicalData, selectedPair]);
 
-  // Loading state indicators
+  // Loading state indicators - optimized for smooth experience
   const LoadingIndicator = ({ type, label }) => {
-    const state = loadingState[type];
+    const state = stableLoadingStates[type] || loadingState[type];
     const error = errors[type];
     const retries = retryCount[type] || 0;
     
     if (state === 'success') return null;
     
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
+      <div className="flex items-center justify-center p-8 min-h-[200px]">
+        <div className="text-center max-w-md">
           {state === 'loading' ? (
             <>
-              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-              <p className="text-gray-600 font-medium">{label}</p>
+              <div className="relative">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+                <div className="absolute inset-0 rounded-full border-2 border-blue-200 border-t-transparent animate-spin"></div>
+              </div>
+              <p className="text-gray-600 font-medium mb-2">{label}</p>
               {retries > 0 && (
-                <p className="text-sm text-orange-600 mt-2">
+                <p className="text-sm text-orange-600 animate-pulse">
                   Retry attempt {retries}/{CONFIG.MAX_RETRIES}
                 </p>
               )}
-              <div className="mt-3">
-                <div className="w-64 bg-gray-200 rounded-full h-2 mx-auto">
-                  <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+              <div className="mt-4">
+                <div className="w-64 bg-gray-200 rounded-full h-2 mx-auto overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full animate-pulse transition-all duration-1000" style={{ width: '60%' }}></div>
                 </div>
               </div>
             </>
@@ -1185,10 +1211,10 @@ const FXTracker = () => {
             <>
               <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-600" />
               <p className="text-red-600 font-medium mb-2">Failed to load {label.toLowerCase()}</p>
-              <p className="text-sm text-gray-600 mb-4">{error}</p>
+              <p className="text-sm text-gray-600 mb-4 max-w-xs mx-auto">{error}</p>
               <button
                 onClick={() => manualRetry(type)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 transform hover:scale-105"
               >
                 <RefreshCw className="h-4 w-4 inline mr-2" />
                 Retry Now
@@ -1201,7 +1227,7 @@ const FXTracker = () => {
               <p className="text-sm text-gray-600 mb-4">The server is taking too long to respond</p>
               <button
                 onClick={() => manualRetry(type)}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200"
               >
                 <RefreshCw className="h-4 w-4 inline mr-2" />
                 Try Again
@@ -1240,13 +1266,26 @@ const FXTracker = () => {
     </div>
   );
 
-  // Initialize on mount
+  // Initialize on mount with staggered loading
   useEffect(() => {
     const initialize = async () => {
+      setIsInitialLoad(true);
       await checkConnection();
+      
+      // Stagger the API calls to reduce simultaneous loading jitter
       fetchRates();
-      fetchNews();
-      fetchEvents();
+      
+      setTimeout(() => {
+        fetchNews();
+      }, 200);
+      
+      setTimeout(() => {
+        fetchEvents();
+      }, 400);
+      
+      setTimeout(() => {
+        setIsInitialLoad(false);
+      }, 1000);
     };
     
     initialize();
@@ -1259,20 +1298,26 @@ const FXTracker = () => {
     }
   }, [selectedPair, loadingState.rates, fetchHistoricalData]);
 
-  // Show initial loading screen only if nothing has loaded yet
-  if (loadingState.rates === 'idle' || (loadingState.rates === 'loading' && Object.keys(rates).length === 0)) {
+  // Show initial loading screen only if nothing has loaded yet - optimized for smooth experience
+  if (isInitialLoad && (loadingState.rates === 'idle' || (loadingState.rates === 'loading' && Object.keys(rates).length === 0))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-6 text-blue-600" />
+          <div className="relative mb-6">
+            <div className="h-12 w-12 mx-auto">
+              <RefreshCw className="h-12 w-12 animate-spin text-blue-600" />
+              <div className="absolute inset-0 rounded-full border-4 border-blue-200 border-t-transparent animate-spin"></div>
+            </div>
+          </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">FX Tracker</h2>
           <p className="text-gray-600 mb-2">Connecting to financial data services...</p>
           <div className="mt-4">
             <ConnectionStatus />
           </div>
-          <div className="mt-6 w-80 bg-gray-200 rounded-full h-2 mx-auto">
-            <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '45%' }}></div>
+          <div className="mt-6 w-80 bg-gray-200 rounded-full h-3 mx-auto overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 h-3 rounded-full transition-all duration-2000 ease-out animate-pulse" style={{ width: '45%' }}></div>
           </div>
+          <p className="text-sm text-gray-500 mt-4">Loading real-time exchange rates...</p>
         </div>
       </div>
     );
@@ -1304,35 +1349,36 @@ const FXTracker = () => {
               <button
                 onClick={() => manualRetry('rates')}
                 disabled={loadingState.rates === 'loading'}
-                className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100"
                 aria-label="Refresh rates"
               >
-                <RefreshCw className={`h-4 w-4 ${loadingState.rates === 'loading' ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 transition-transform duration-200 ${loadingState.rates === 'loading' ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Global error banner */}
+      {/* Global error banner with smooth transitions */}
       {Object.keys(errors).length > 0 && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 transform transition-all duration-300 ease-out">
             <div className="flex items-start">
               <AlertCircle className="h-5 w-5 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <h3 className="text-yellow-800 font-medium">Some data services are experiencing issues</h3>
-                <div className="mt-2 text-sm text-yellow-700">
+                <div className="mt-2 text-sm text-yellow-700 space-y-1">
                   {Object.entries(errors).map(([type, error]) => (
-                    <div key={type} className="mb-1">
-                      <strong>{type}:</strong> {error}
+                    <div key={type} className="flex items-center">
+                      <strong className="mr-2">{type}:</strong> 
+                      <span className="flex-1">{error}</span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-3">
                   <button
                     onClick={checkConnection}
-                    className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 transition-colors"
+                    className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded hover:bg-yellow-200 transition-all duration-200 transform hover:scale-105"
                   >
                     Check Connection
                   </button>
@@ -1409,10 +1455,10 @@ const FXTracker = () => {
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-blue-600">
+                          <div className="text-3xl font-bold text-blue-600 transition-all duration-300">
                             {formatRate(rates[selectedPair])}
                           </div>
-                          <div className={`text-sm font-medium ${getChangeColor(getCurrentChange(selectedPair))}`}>
+                          <div className={`text-sm font-medium transition-colors duration-200 ${getChangeColor(getCurrentChange(selectedPair))}`}>
                             {getCurrentChange(selectedPair) && !isNaN(getCurrentChange(selectedPair)) ? 
                               (getCurrentChange(selectedPair) > 0 ? '+' : '') + getCurrentChange(selectedPair).toFixed(3) + '%' : '--'}
                           </div>
@@ -1598,9 +1644,16 @@ const FXTracker = () => {
                 <button
                   onClick={() => fetchHistoricalData(selectedPair)}
                   disabled={loadingState.historical === 'loading'}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 transform hover:scale-105 disabled:hover:scale-100 min-w-[140px]"
                 >
-                  {loadingState.historical === 'loading' ? 'Fetching Data...' : 'Update Analysis'}
+                  {loadingState.historical === 'loading' ? (
+                    <span className="flex items-center justify-center">
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                      Fetching...
+                    </span>
+                  ) : (
+                    'Update Analysis'
+                  )}
                 </button>
               </div>
             </div>
@@ -1681,7 +1734,7 @@ const FXTracker = () => {
                       )}
                     </div>
                     
-                    <div style={{ height: CONFIG.CHART_HEIGHT.main }}>
+                    <div style={{ height: CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
                       {chartType === 'candlestick' ? (
                         <CandlestickChart data={prepareCombinedChartData()} />
                       ) : (
@@ -1721,7 +1774,7 @@ const FXTracker = () => {
                         </div>
                       </div>
                       
-                      <div style={{ height: CONFIG.CHART_HEIGHT.forecast }}>
+                      <div style={{ height: CONFIG.CHART_HEIGHT.forecast, minHeight: CONFIG.CHART_HEIGHT.forecast }}>
                         <ForecastChart 
                           historicalData={historicalData[selectedPair]} 
                           forecastData={forecast[selectedPair].data} 
@@ -1743,7 +1796,7 @@ const FXTracker = () => {
                       <h3 className="text-lg font-medium text-gray-900 mb-3">
                         RSI ({CONFIG.INDICATORS.RSI_PERIOD}-period) Momentum Indicator
                       </h3>
-                      <div style={{ height: CONFIG.CHART_HEIGHT.rsi }}>
+                      <div style={{ height: CONFIG.CHART_HEIGHT.rsi, minHeight: CONFIG.CHART_HEIGHT.rsi }}>
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={historicalData[selectedPair]}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -1901,7 +1954,7 @@ const FXTracker = () => {
               ) : (
                 <div className="text-center py-12">
                   <div className="h-8 w-8 mx-auto mb-4 bg-gray-300 rounded animate-pulse"></div>
-                  <p className="text-gray-500">No historical data available for this pair</p>
+                  <p className="text-sm text-gray-500">No historical data available for this pair</p>
                   <p className="text-sm text-gray-400 mt-2">Try a different currency pair or check API connectivity</p>
                 </div>
               )}
@@ -1927,7 +1980,7 @@ const FXTracker = () => {
                         const [base, quote] = pair.split('/');
                         handlePairChange(base, quote);
                       }}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 transform hover:shadow-md hover:scale-102 ${
                         selectedPair === pair 
                           ? 'border-blue-500 bg-blue-50' 
                           : 'border-gray-200 hover:border-gray-300'
