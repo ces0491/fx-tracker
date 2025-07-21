@@ -92,6 +92,46 @@ const FXTracker = () => {
     'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD', 'EUR/GBP'
   ], []);
 
+  // Utility functions for formatting
+  const formatRate = useCallback((rate) => {
+    if (!rate || isNaN(rate) || rate === undefined || rate === null) return '--';
+    return rate < 1 ? rate.toFixed(5) : rate.toFixed(4);
+  }, []);
+
+  const formatDateForChart = useCallback((dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }, []);
+
+  // Custom tooltip component
+  const CustomTooltip = useCallback(({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
+          <p className="font-medium">{formatDateForChart(label)}</p>
+          {chartType === 'candlestick' && data.open !== undefined ? (
+            <div className="space-y-1">
+              <p style={{ color: '#2563eb' }}>Open: {formatRate(data.open)}</p>
+              <p style={{ color: '#059669' }}>High: {formatRate(data.high)}</p>
+              <p style={{ color: '#dc2626' }}>Low: {formatRate(data.low)}</p>
+              <p style={{ color: '#1f2937' }}>Close: {formatRate(data.close)}</p>
+              <p style={{ color: '#6b7280' }}>Volume: {data.volume?.toLocaleString()}</p>
+            </div>
+          ) : (
+            payload.map((entry, index) => (
+              <p key={index} style={{ color: entry.color }}>
+                {entry.name}: {formatRate(entry.value)}
+              </p>
+            ))
+          )}
+        </div>
+      );
+    }
+    return null;
+  }, [chartType, formatDateForChart, formatRate]);
+
   // Error handler with retry logic
   const handleApiError = useCallback(async (error, retryFn, retries = 0) => {
     console.error('API Error:', error);
@@ -116,7 +156,7 @@ const FXTracker = () => {
         url = new URL(endpoint);
       } else {
         // Relative URL - construct properly
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || window.location.origin;
+        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
         const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
         url = new URL(cleanEndpoint, baseUrl);
       }
@@ -297,52 +337,12 @@ const FXTracker = () => {
     return forecast;
   }, []);
 
-  // Utility functions for formatting - MOVED UP to be available for chart components
-  const formatRate = useCallback((rate) => {
-    if (!rate || isNaN(rate) || rate === undefined || rate === null) return '--';
-    return rate < 1 ? rate.toFixed(5) : rate.toFixed(4);
-  }, []);
-
-  const formatDateForChart = useCallback((dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  }, []);
-
-  // Custom tooltip component - MOVED UP to be available for chart components
-  const CustomTooltip = useCallback(({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-          <p className="font-medium">{formatDateForChart(label)}</p>
-          {chartType === 'candlestick' && data.open !== undefined ? (
-            <div className="space-y-1">
-              <p style={{ color: '#2563eb' }}>Open: {formatRate(data.open)}</p>
-              <p style={{ color: '#059669' }}>High: {formatRate(data.high)}</p>
-              <p style={{ color: '#dc2626' }}>Low: {formatRate(data.low)}</p>
-              <p style={{ color: '#1f2937' }}>Close: {formatRate(data.close)}</p>
-              <p style={{ color: '#6b7280' }}>Volume: {data.volume?.toLocaleString()}</p>
-            </div>
-          ) : (
-            payload.map((entry, index) => (
-              <p key={index} style={{ color: entry.color }}>
-                {entry.name}: {formatRate(entry.value)}
-              </p>
-            ))
-          )}
-        </div>
-      );
-    }
-    return null;
-  }, [chartType, formatDateForChart, formatRate]);
-
   // Combined data preparation function
   const prepareCombinedChartData = useCallback(() => {
     if (!historicalData[selectedPair]) return [];
     
     const historical = historicalData[selectedPair];
-    const forecastData = forecast[selectedPair]?.data || [];
+    const forecastData = forecast && forecast[selectedPair] ? forecast[selectedPair].data || [] : [];
     
     // Combine historical and forecast data
     const combinedData = [
@@ -480,7 +480,7 @@ const FXTracker = () => {
           )}
           
           {/* Support/Resistance lines */}
-          {forecast[selectedPair]?.support && (
+          {forecast && forecast[selectedPair] && forecast[selectedPair].support && (
             <ReferenceLine 
               y={forecast[selectedPair].support} 
               stroke="#ef4444" 
@@ -488,7 +488,7 @@ const FXTracker = () => {
               label="Support"
             />
           )}
-          {forecast[selectedPair]?.resistance && (
+          {forecast && forecast[selectedPair] && forecast[selectedPair].resistance && (
             <ReferenceLine 
               y={forecast[selectedPair].resistance} 
               stroke="#ef4444" 
@@ -610,33 +610,7 @@ const FXTracker = () => {
     );
   }, [indicators, formatDateForChart, formatRate, CustomTooltip]);
 
-  // Fetch real-time rates through secure backend endpoint
-  const fetchRates = useCallback(async (retries = 0) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Call your backend API instead of directly calling external APIs
-      const data = await secureApiCall(CONFIG.RATES_ENDPOINT);
-      
-      if (data && data.rates) {
-        setRates(data.rates);
-        setLastUpdate(new Date());
-        
-        // Auto-fetch historical data for selected pair if we have rates
-        if (data.rates[selectedPair]) {
-          await fetchHistoricalData(selectedPair);
-        }
-      } else {
-        throw new Error('Invalid response from rates API');
-      }
-    } catch (err) {
-      return handleApiError(err, fetchRates, retries);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedPair, secureApiCall, CONFIG.RATES_ENDPOINT, handleApiError, fetchHistoricalData]);
-
+  // FIXED: Separate fetch functions to avoid circular dependency
   // Fetch historical data through secure backend
   const fetchHistoricalData = useCallback(async (pair, retries = 0) => {
     try {
@@ -699,6 +673,36 @@ const FXTracker = () => {
       return handleApiError(err, () => fetchHistoricalData(pair, retries), retries);
     }
   }, [dateRange, secureApiCall, CONFIG.HISTORICAL_ENDPOINT, calculateIndicators, advancedForecast, forecastDays, handleApiError]);
+
+  // FIXED: Fetch real-time rates - removed circular dependency 
+  const fetchRates = useCallback(async (retries = 0) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Call your backend API instead of directly calling external APIs
+      const data = await secureApiCall(CONFIG.RATES_ENDPOINT);
+      
+      if (data && data.rates) {
+        setRates(data.rates);
+        setLastUpdate(new Date());
+        
+        // Only fetch historical data if we don't have it yet
+        if (data.rates[selectedPair] && !historicalData[selectedPair]) {
+          // Use a timeout to break the immediate dependency chain
+          setTimeout(() => {
+            fetchHistoricalData(selectedPair);
+          }, 100);
+        }
+      } else {
+        throw new Error('Invalid response from rates API');
+      }
+    } catch (err) {
+      return handleApiError(err, fetchRates, retries);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedPair, secureApiCall, CONFIG.RATES_ENDPOINT, handleApiError, historicalData]);
 
   // Generate fallback chart when historical data fails
   const generateFallbackChart = useCallback((pair) => {
@@ -1180,7 +1184,7 @@ const FXTracker = () => {
                         </div>
                       </div>
                       
-                      {forecast[selectedPair] && (
+                      {forecast && forecast[selectedPair] && (
                         <div className="text-sm text-gray-600">
                           Forecast Trend: <span className={`font-medium ${
                             forecast[selectedPair].trend === 'bullish' ? 'text-green-600' :
@@ -1246,7 +1250,7 @@ const FXTracker = () => {
                   )}
 
                   {/* Enhanced Technical Summary */}
-                  {forecast[selectedPair] && (
+                  {forecast && forecast[selectedPair] && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h4 className="font-medium text-gray-900 mb-2">Signal Strength</h4>
@@ -1319,7 +1323,7 @@ const FXTracker = () => {
                   )}
 
                   {/* Forecast Statistics */}
-                  {forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
+                  {forecast && forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
                     <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
                       <h4 className="font-medium text-gray-900 mb-3 flex items-center">
                         <Target className="h-4 w-4 mr-2 text-purple-600" />
