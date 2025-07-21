@@ -104,27 +104,60 @@ const FXTracker = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }, []);
 
-  // Custom tooltip component
+  // Custom tooltip component with enhanced forecast display
   const CustomTooltip = useCallback(({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const isForecast = data.isForecast || data.type === 'forecast';
+      
       return (
         <div className="bg-white p-3 border border-gray-300 rounded-lg shadow-lg">
-          <p className="font-medium">{formatDateForChart(label)}</p>
-          {chartType === 'candlestick' && data.open !== undefined ? (
+          <p className="font-medium flex items-center">
+            {formatDateForChart(label)}
+            {isForecast && (
+              <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded">
+                Forecast
+              </span>
+            )}
+          </p>
+          
+          {isForecast ? (
+            <div className="space-y-1">
+              <p style={{ color: '#7c3aed' }}>
+                Projected Rate: {formatRate(data.rate)}
+              </p>
+              {data.upperBound && data.lowerBound && (
+                <>
+                  <p style={{ color: '#059669' }}>
+                    Upper 95%: {formatRate(data.upperBound)}
+                  </p>
+                  <p style={{ color: '#dc2626' }}>
+                    Lower 95%: {formatRate(data.lowerBound)}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Confidence: {data.confidence ? (data.confidence * 100).toFixed(0) + '%' : 'N/A'}
+                  </p>
+                </>
+              )}
+            </div>
+          ) : chartType === 'candlestick' && data.open !== undefined ? (
             <div className="space-y-1">
               <p style={{ color: '#2563eb' }}>Open: {formatRate(data.open)}</p>
               <p style={{ color: '#059669' }}>High: {formatRate(data.high)}</p>
               <p style={{ color: '#dc2626' }}>Low: {formatRate(data.low)}</p>
               <p style={{ color: '#1f2937' }}>Close: {formatRate(data.close)}</p>
-              <p style={{ color: '#6b7280' }}>Volume: {data.volume?.toLocaleString()}</p>
+              {data.volume && (
+                <p style={{ color: '#6b7280' }}>Volume: {data.volume.toLocaleString()}</p>
+              )}
             </div>
           ) : (
-            payload.map((entry, index) => (
-              <p key={index} style={{ color: entry.color }}>
-                {entry.name}: {formatRate(entry.value)}
-              </p>
-            ))
+            <div className="space-y-1">
+              {payload.map((entry, index) => (
+                <p key={index} style={{ color: entry.color }}>
+                  {entry.name}: {formatRate(entry.value)}
+                </p>
+              ))}
+            </div>
           )}
         </div>
       );
@@ -243,7 +276,7 @@ const FXTracker = () => {
     return enhanced;
   }, [CONFIG.INDICATORS]);
 
-  // IMPROVED FORECASTING ALGORITHM with pattern recognition
+  // IMPROVED FORECASTING ALGORITHM with proper confidence expansion
   const advancedForecast = useCallback((historicalData, days = 30) => {
     if (!historicalData || historicalData.length < 10) return [];
     
@@ -267,209 +300,273 @@ const FXTracker = () => {
     // Weighted trend combining multiple timeframes
     const combinedTrend = (shortTrend * 0.5 + mediumTrend * 0.3 + longTrend * 0.2);
     
-    // Enhanced volatility calculation with GARCH-like approach
+    // Enhanced volatility calculation
     const recentVolatility = returns.slice(-14).reduce((sum, r) => sum + r * r, 0) / 14;
-    const volatility = Math.sqrt(recentVolatility);
+    const volatility = Math.sqrt(recentVolatility * 252); // Annualized
     
     // Mean reversion parameters
     const meanRate = data.reduce((a, b) => a + b, 0) / data.length;
     const currentRate = data[n - 1];
-    const meanReversionSpeed = 0.05; // How quickly it reverts to mean
+    const meanReversionSpeed = 0.02;
     
-    // Detect cyclical patterns
-    const cyclicalComponent = [];
-    for (let lag = 5; lag <= 15; lag++) {
-      let correlation = 0;
-      let count = 0;
-      for (let i = lag; i < n; i++) {
-        correlation += (data[i] - meanRate) * (data[i - lag] - meanRate);
-        count++;
-      }
-      if (count > 0) cyclicalComponent.push(correlation / count);
-    }
-    
-    const maxCyclical = Math.max(...cyclicalComponent.map(Math.abs));
-    const cyclicalIndex = cyclicalComponent.findIndex(c => Math.abs(c) === maxCyclical);
-    const cyclicalPeriod = cyclicalIndex + 5;
+    // Base volatility as percentage of current rate
+    const baseVolatility = Math.max(volatility * currentRate * 0.1, currentRate * 0.001);
     
     const forecast = [];
     let currentValue = currentRate;
     
+    // Get the last historical date and ensure forecast starts the next day
+    const lastHistoricalDate = new Date(historicalData[n - 1].date);
+    
     for (let i = 1; i <= days; i++) {
-      const forecastDate = new Date(historicalData[n - 1].date);
+      const forecastDate = new Date(lastHistoricalDate);
       forecastDate.setDate(forecastDate.getDate() + i);
       
       // Trend component with decay
-      const trendDecay = Math.exp(-i / 20); // Trend weakens over time
+      const trendDecay = Math.exp(-i / 25);
       const trendComponent = combinedTrend * trendDecay;
       
       // Mean reversion component
-      const meanReversionComponent = (meanRate - currentValue) * meanReversionSpeed * Math.sqrt(i);
+      const meanReversionComponent = (meanRate - currentValue) * meanReversionSpeed;
       
-      // Cyclical component
-      const cyclicalPhase = (i % cyclicalPeriod) / cyclicalPeriod * 2 * Math.PI;
-      const cyclicalAdjustment = maxCyclical * Math.sin(cyclicalPhase) * 0.001 * Math.exp(-i / 30);
+      // Update forecast value with small random walk
+      const randomWalk = (Math.random() - 0.5) * baseVolatility * 0.1;
+      currentValue = currentValue + trendComponent + meanReversionComponent + randomWalk;
       
-      // Random walk with volatility clustering
-      const volatilityCluster = volatility * (1 + 0.1 * Math.sin(i / 3));
+      // FIXED: Expanding confidence intervals - key fix!
+      // Confidence should expand with square root of time AND be substantial enough to see
+      const timeExpansion = Math.sqrt(i); // This grows as sqrt of time horizon
+      const uncertaintyGrowth = 1 + (i * 0.15); // Additional linear growth for long-term uncertainty
       
-      // Update current value
-      currentValue = currentValue + trendComponent + meanReversionComponent + cyclicalAdjustment;
+      // Calculate confidence width that expands properly over time
+      const dailyVolatility = baseVolatility;
+      const cumulativeVolatility = dailyVolatility * timeExpansion * uncertaintyGrowth;
+      const confidenceWidth = 1.96 * cumulativeVolatility; // 95% confidence interval
       
-      // Confidence intervals based on volatility and time horizon
-      const timeAdjustedVolatility = volatilityCluster * Math.sqrt(i) * currentValue;
-      const confidenceWidth = 1.96 * timeAdjustedVolatility; // 95% confidence
+      // Ensure minimum visible confidence width
+      const minConfidenceWidth = currentValue * 0.005; // At least 0.5% of current rate
+      const finalConfidenceWidth = Math.max(confidenceWidth, minConfidenceWidth);
       
-      // Add some bounded randomness to make it more realistic
-      const randomComponent = (Math.random() - 0.5) * volatility * 0.1 * currentValue;
-      const forecastValue = currentValue + randomComponent;
+      const forecastValue = currentValue;
+      const upperBound = forecastValue + finalConfidenceWidth;
+      const lowerBound = Math.max(0, forecastValue - finalConfidenceWidth);
       
       forecast.push({
         date: forecastDate.toISOString().split('T')[0],
         rate: forecastValue,
-        upperBound: forecastValue + confidenceWidth,
-        lowerBound: Math.max(0, forecastValue - confidenceWidth), // Ensure positive
-        confidence: Math.max(0.2, 0.95 - (i * 0.02)), // Decreasing confidence
-        isForecast: true // Flag to identify forecast data
+        close: null, // Mark as forecast, not historical
+        open: null,
+        high: null,
+        low: null,
+        upperBound: upperBound,
+        lowerBound: lowerBound,
+        confidence: Math.max(0.3, 0.95 - (i * 0.02)),
+        isForecast: true,
+        type: 'forecast'
       });
     }
     
     return forecast;
   }, []);
 
-  // Combined data preparation function
+  // Combined data preparation function - FIXED for proper sequencing
   const prepareCombinedChartData = useCallback(() => {
     if (!historicalData[selectedPair]) return [];
     
     const historical = historicalData[selectedPair];
     const forecastData = forecast && forecast[selectedPair] ? forecast[selectedPair].data || [] : [];
     
-    // Combine historical and forecast data
+    // Ensure historical data is sorted by date
+    const sortedHistorical = [...historical].sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Ensure forecast data is sorted by date and starts after historical data
+    const lastHistoricalDate = sortedHistorical.length > 0 ? 
+      new Date(sortedHistorical[sortedHistorical.length - 1].date) : new Date();
+    
+    const validForecastData = forecastData
+      .filter(item => new Date(item.date) > lastHistoricalDate)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Create transition point - add the last historical point to forecast data for smooth connection
+    let transitionPoint = null;
+    if (sortedHistorical.length > 0 && validForecastData.length > 0) {
+      const lastHistorical = sortedHistorical[sortedHistorical.length - 1];
+      transitionPoint = {
+        date: lastHistorical.date,
+        close: lastHistorical.close,
+        rate: lastHistorical.close, // Use historical close as starting point for forecast
+        upperBound: lastHistorical.close, // Start confidence bands from last known price
+        lowerBound: lastHistorical.close,
+        isForecast: false,
+        type: 'transition'
+      };
+    }
+    
+    // Combine all data in proper chronological order
     const combinedData = [
-      ...historical.map(item => ({
+      // Historical data (no confidence bands)
+      ...sortedHistorical.map(item => ({
         ...item,
         isForecast: false,
-        type: 'historical'
+        type: 'historical',
+        upperBound: null, // No confidence bands for historical data
+        lowerBound: null
       })),
-      ...forecastData.map(item => ({
+      // Transition point (if exists)
+      ...(transitionPoint ? [transitionPoint] : []),
+      // Forecast data with expanding confidence bands
+      ...validForecastData.map(item => ({
         ...item,
-        close: item.rate,
-        open: item.rate,
-        high: item.rate,
-        low: item.rate,
-        volume: 0,
+        close: null, // Clear historical fields for forecast data
+        open: null,
+        high: null,
+        low: null,
+        volume: null,
         type: 'forecast'
       }))
     ];
     
-    return combinedData;
+    // Final sort to ensure chronological order
+    return combinedData.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [historicalData, selectedPair, forecast]);
 
-  // Calculate dynamic Y-axis domain for better chart scaling
+  // Calculate dynamic Y-axis domain for better chart scaling - FIXED VERSION
   const calculateChartDomain = useCallback((data) => {
     if (!data || data.length === 0) return ['auto', 'auto'];
     
-    // Get all relevant price values
+    // Get all relevant price values including confidence bands
     const prices = [];
     data.forEach(item => {
-      if (item.close) prices.push(item.close);
-      if (item.rate) prices.push(item.rate);
-      if (item.high) prices.push(item.high);
-      if (item.low) prices.push(item.low);
-      if (item.open) prices.push(item.open);
-      // Include technical indicators if enabled
+      // Historical data
+      if (!item.isForecast) {
+        if (item.close) prices.push(item.close);
+        if (item.high) prices.push(item.high);
+        if (item.low) prices.push(item.low);
+        if (item.open) prices.push(item.open);
+      }
+      
+      // Forecast data and confidence bands
+      if (item.isForecast || item.type === 'forecast') {
+        if (item.rate) prices.push(item.rate);
+        if (item.upperBound) prices.push(item.upperBound);
+        if (item.lowerBound) prices.push(item.lowerBound);
+      }
+      
+      // Technical indicators if enabled
       if (indicators.sma5 && item.sma5) prices.push(item.sma5);
       if (indicators.sma20 && item.sma20) prices.push(item.sma20);
       if (indicators.bollinger && item.bollingerUpper) prices.push(item.bollingerUpper);
       if (indicators.bollinger && item.bollingerLower) prices.push(item.bollingerLower);
-      // Include forecast confidence bands
-      if (item.upperBound) prices.push(item.upperBound);
-      if (item.lowerBound) prices.push(item.lowerBound);
     });
     
     if (prices.length === 0) return ['auto', 'auto'];
     
-    const minPrice = Math.min(...prices.filter(p => p && !isNaN(p)));
-    const maxPrice = Math.max(...prices.filter(p => p && !isNaN(p)));
+    const validPrices = prices.filter(p => p && !isNaN(p) && p > 0);
+    if (validPrices.length === 0) return ['auto', 'auto'];
     
-    // Add 5% padding on each side for better visualization
+    const minPrice = Math.min(...validPrices);
+    const maxPrice = Math.max(...validPrices);
+    
+    // Add 8% padding on each side for better visualization of expanding confidence bands
     const range = maxPrice - minPrice;
-    const padding = Math.max(range * 0.05, range * 0.02); // At least 2% padding
+    const padding = Math.max(range * 0.08, range * 0.03); // At least 3% padding
     
-    const domainMin = minPrice - padding;
+    const domainMin = Math.max(0, minPrice - padding); // Ensure positive
     const domainMax = maxPrice + padding;
     
     // Ensure domain is reasonable
     if (domainMin === domainMax) {
-      return [domainMin * 0.995, domainMax * 1.005];
+      return [domainMin * 0.99, domainMax * 1.01];
     }
     
     return [domainMin, domainMax];
   }, [indicators]);
 
-  // Enhanced Line Chart with Forecast Integration
+  // Enhanced Line Chart with Proper Forecast Integration and Expanding Confidence Bands
   const IntegratedLineChart = useCallback(({ data }) => {
     const chartDomain = calculateChartDomain(data);
     
+    // Separate historical and forecast data for better rendering
+    const historicalData = data.filter(item => !item.isForecast && item.type !== 'forecast');
+    const forecastData = data.filter(item => item.isForecast || item.type === 'forecast');
+    
+    // Create confidence band data - combine both historical end and forecast start for smooth transition
+    const confidenceData = [...data].map(item => ({
+      date: item.date,
+      upperBound: item.isForecast || item.type === 'forecast' ? item.upperBound : null,
+      lowerBound: item.isForecast || item.type === 'forecast' ? item.lowerBound : null
+    }));
+    
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
+        <LineChart data={data} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis 
             dataKey="date" 
             tickFormatter={formatDateForChart}
             stroke="#666"
+            tick={{ fontSize: 12 }}
           />
           <YAxis 
             domain={chartDomain}
             tickFormatter={formatRate}
             stroke="#666"
+            tick={{ fontSize: 12 }}
+            width={80}
           />
           <Tooltip content={<CustomTooltip />} />
           
-          {/* Forecast confidence bands */}
+          {/* FIXED: Confidence bands rendered as single expanding area */}
+          <defs>
+            <linearGradient id="confidenceGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#e0f2fe" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="#bfdbfe" stopOpacity={0.5} />
+            </linearGradient>
+          </defs>
+          
+          {/* Upper confidence bound area */}
           <Area
             type="monotone"
             dataKey="upperBound"
-            stackId="confidence"
+            stackId="confidenceBand"
             stroke="none"
-            fill="#e0f2fe"
-            fillOpacity={0.3}
+            fill="url(#confidenceGradient)"
             connectNulls={false}
-            name="Upper Confidence (95%)"
+            name="95% Confidence Band"
           />
+          
+          {/* Lower confidence bound area - creates the band between upper and lower */}
           <Area
             type="monotone"
             dataKey="lowerBound"
-            stackId="confidence"
+            stackId="confidenceBand"
             stroke="none"
             fill="#ffffff"
-            fillOpacity={0.8}
             connectNulls={false}
-            name="Lower Confidence (95%)"
+            name=""
           />
           
-          {/* Historical close price */}
+          {/* Historical close price line */}
           <Line 
             type="monotone" 
             dataKey="close" 
             stroke="#2563eb"
-            strokeWidth={2}
+            strokeWidth={2.5}
             dot={false}
             connectNulls={false}
             name="Historical Price"
           />
           
-          {/* Forecast line */}
+          {/* Forecast line with distinct styling */}
           <Line 
             type="monotone" 
             dataKey="rate" 
             stroke="#7c3aed"
-            strokeWidth={2}
-            strokeDasharray="5 5"
+            strokeWidth={2.5}
+            strokeDasharray="6 4"
             dot={false}
             connectNulls={false}
-            name="Forecast"
+            name="AI Forecast"
           />
           
           {/* Technical indicators */}
@@ -478,7 +575,7 @@ const FXTracker = () => {
               type="monotone" 
               dataKey="sma5" 
               stroke="#10b981" 
-              strokeWidth={1}
+              strokeWidth={1.5}
               strokeDasharray="3 3"
               dot={false}
               connectNulls={false}
@@ -490,7 +587,7 @@ const FXTracker = () => {
               type="monotone" 
               dataKey="sma20" 
               stroke="#f59e0b" 
-              strokeWidth={1}
+              strokeWidth={1.5}
               strokeDasharray="3 3"
               dot={false}
               connectNulls={false}
@@ -529,7 +626,7 @@ const FXTracker = () => {
               y={forecast[selectedPair].support} 
               stroke="#ef4444" 
               strokeDasharray="2 2"
-              label="Support"
+              label={{ value: "Support", position: "insideTopRight" }}
             />
           )}
           {forecast && forecast[selectedPair] && forecast[selectedPair].resistance && (
@@ -537,7 +634,7 @@ const FXTracker = () => {
               y={forecast[selectedPair].resistance} 
               stroke="#ef4444" 
               strokeDasharray="2 2"
-              label="Resistance"
+              label={{ value: "Resistance", position: "insideBottomRight" }}
             />
           )}
         </LineChart>
@@ -619,8 +716,8 @@ const FXTracker = () => {
             type="monotone" 
             dataKey="rate" 
             stroke="#7c3aed"
-            strokeWidth={2}
-            strokeDasharray="5 5"
+            strokeWidth={2.5}
+            strokeDasharray="6 4"
             dot={false}
             connectNulls={false}
             name="Forecast"
@@ -632,7 +729,7 @@ const FXTracker = () => {
               type="monotone" 
               dataKey="sma5" 
               stroke="#10b981" 
-              strokeWidth={1}
+              strokeWidth={1.5}
               strokeDasharray="3 3"
               dot={false}
               connectNulls={false}
@@ -644,7 +741,7 @@ const FXTracker = () => {
               type="monotone" 
               dataKey="sma20" 
               stroke="#f59e0b" 
-              strokeWidth={1}
+              strokeWidth={1.5}
               strokeDasharray="3 3"
               dot={false}
               connectNulls={false}
