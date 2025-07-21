@@ -642,7 +642,7 @@ const FXTracker = () => {
         </LineChart>
       </ResponsiveContainer>
     );
-  }, [indicators, formatDateForChart, formatRate, CustomTooltip, forecast, selectedPair, calculateChartDomain]);
+  }, [indicators, formatDateForChart, formatRate, forecast, selectedPair, calculateChartDomain]);
 
   const ForecastChart = useCallback(({ historicalData, forecastData }) => {
     if (!forecastData || forecastData.length === 0) return null;
@@ -853,7 +853,7 @@ const FXTracker = () => {
         </LineChart>
       </ResponsiveContainer>
     );
-  }, [indicators, formatDateForChart, formatRate, CustomTooltip, calculateChartDomain]);
+  }, [indicators, formatDateForChart, formatRate, calculateChartDomain]);
 
   // Data preparation
   const prepareCombinedChartData = useCallback(() => {
@@ -1488,7 +1488,7 @@ const FXTracker = () => {
                       
                       <div className="text-xs text-gray-500">
                         <p><strong>Note:</strong> Custom currency pairs require real exchange rate data from our APIs. 
-                        If data is not available for your pair, you'll see an error message.</p>
+                        If data is not available for your pair, you will see an error message.</p>
                       </div>
                     </div>
                   )}
