@@ -7,14 +7,16 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 ## ✨ Features
 
 ### 🔄 Real-Time Data
+
 - **Live Exchange Rates**: Real-time currency conversion for 27+ major currencies
 - **Cross-Rate Calculations**: Automatic calculation of all currency pair combinations
 - **5-minute Updates**: Automated refresh every 5 minutes
 - **Last Update Tracking**: Visual indication of data freshness
 
 ### 📊 Analytics
+
 - **Historical Charts**: Interactive price history with customizable date ranges
-- **Technical Indicators**: 
+- **Technical Indicators**:
   - Simple Moving Averages (5-day, 20-day)
   - Bollinger Bands
   - RSI (Relative Strength Index)
@@ -23,18 +25,21 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 - **Forecasting**: 30-90 day statistical forecasting using exponential smoothing
 
 ### 📈 Tools
+
 - **Popular Pairs**: Pre-configured currency pairs (NZD/ZAR, EUR/USD, etc.)
 - **Custom Pair Selection**: Choose any base and quote currency combination
 - **Data Export**: Download historical data and indicators as CSV
 - **Volatility Analysis**: Annual volatility calculations with risk assessment
 
 ### 📰 Market Intelligence
+
 - **Real-Time News**: Financial news with AI sentiment analysis
 - **Impact Classification**: High/Medium/Low impact rating for news events
 - **Currency Relevance**: News filtered by relevant currencies
 - **Dynamic Events Calendar**: Upcoming economic events and central bank meetings
 
 ### 🔒 Security & Performance
+
 - **Secure API Architecture**: All external API calls routed through backend
 - **Environment Variable Protection**: API keys never exposed to frontend
 - **Error Handling**: Comprehensive error handling with retry logic
@@ -48,26 +53,29 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 - **Charts**: Recharts
 - **Icons**: Lucide React
 - **Deployment**: Vercel
-- **APIs**: 
+- **APIs**:
   - ExchangeRate-API (real-time rates)
   - Alpha Vantage (historical data & news)
 
 ## 📦 Installation
 
 ### Prerequisites
+
 - Node.js 18.x or higher
 - npm or yarn
-- API keys (see [Environment Setup](#environment-setup))
+- API keys
 
 ### Local Development
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/yourusername/fx-tracker-pro.git
    cd fx-tracker-pro
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    # or
@@ -75,11 +83,13 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env.local
    ```
-   
+
    Edit `.env.local` with your actual API keys:
+
    ```env
    ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key_here
    EXCHANGE_RATE_API_KEY=your_exchangerate_api_key_here
@@ -87,6 +97,7 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
    ```
 
 4. **Start development server**
+
    ```bash
    npm run dev
    # or
@@ -101,11 +112,13 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 ### Required API Keys
 
 #### 1. ExchangeRate-API (Real-time Rates)
+
 - **Purpose**: Real-time currency exchange rates
 - **Free Tier**: 1,500 requests/month
 - **Sign up**: [ExchangeRate-API](https://app.exchangerate-api.com/sign-up)
 
 #### 2. Alpha Vantage (Historical Data & News)
+
 - **Purpose**: Historical forex data and financial news
 - **Free Tier**: 25 requests/day
 - **Sign up**: [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
@@ -121,6 +134,7 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 ### Production Deployment (Vercel)
 
 1. **Deploy to Vercel**
+
    ```bash
    vercel
    ```
@@ -134,7 +148,7 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 
 ## 📁 Project Structure
 
-```
+```text
 fx-tracker-pro/
 ├── components/
 │   └── FXTracker.js           # Main application component
@@ -190,6 +204,7 @@ fx-tracker-pro/
 ### Forecasting Algorithm
 
 The application uses advanced exponential smoothing with:
+
 - **Trend Analysis**: Identifies bullish/bearish trends
 - **Seasonal Adjustments**: Weekly seasonality patterns
 - **Mean Reversion**: Long-term equilibrium considerations
@@ -215,6 +230,7 @@ The application uses advanced exponential smoothing with:
 ### Security Headers
 
 The application implements security headers through Vercel:
+
 - Content Security Policy (CSP)
 - X-Frame-Options
 - X-Content-Type-Options
