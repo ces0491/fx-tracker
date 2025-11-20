@@ -1,7 +1,7 @@
 # 🌍 FX Tracker
 
-A professional foreign exchange tracking application built with Next.js,
-featuring real-time currency rates, advanced ML forecasting, historical data
+A foreign exchange tracking application built with Next.js,
+featuring real-time currency rates, forecasting, historical data
 analysis, technical indicators, and live market news.
 
 ![FX Tracker Pro](https://img.shields.io/badge/Next.js-15.4.2-black)
@@ -18,7 +18,6 @@ analysis, technical indicators, and live market news.
 - **Cross-Rate Calculations**: Automatic calculation of all currency pair combinations
 - **Auto-Refresh**: Automated updates with status indicators
 - **Free Fallback APIs**: Works without API keys using Frankfurter & ExchangeRate-API
-- **No CORS Issues**: All API calls routed through secure backend
 
 ### 📊 Analytics & Charting
 
@@ -31,7 +30,7 @@ analysis, technical indicators, and live market news.
 - **Multiple Chart Types**: Line charts and candlestick views
 - **Interactive Charts**: Zoom, pan, and export functionality
 
-### 🤖 Advanced Forecasting
+### 🤖 Forecasting
 
 **9 Forecasting Algorithms** with hybrid JavaScript + Python architecture:
 
@@ -67,7 +66,7 @@ See [FORECASTING.md](FORECASTING.md) for detailed documentation.
 - **Data Export**: Download historical data and indicators as CSV
 - **Volatility Analysis**: Annual volatility calculations with risk assessment
 
-### 📰 Market Intelligence (Live Data!)
+### 📰 Market Intelligence
 
 - **Real Financial News**: Live forex news from RSS feeds (ForexLive)
 - **Multiple News Sources**: NewsAPI.org (free), GNews (free), RSS aggregation with fallback
@@ -346,105 +345,6 @@ fx-tracker/
 - Backtesting metrics (MAE, accuracy)
 - Automatic fallback to JS if Python unavailable
 - Horizon selection: 7, 14, 30, 60, 90 days
-
-See [FORECASTING.md](FORECASTING.md) for complete documentation.
-
-### News & Sentiment Analysis
-
-- **Real-Time Sources**: ForexLive RSS, NewsAPI, GNews
-- **Auto Sentiment**: Bullish/Bearish/Neutral classification
-- **Impact Detection**: Identifies high-impact terms (central bank, rates, etc.)
-- **Currency Extraction**: Automatically finds mentioned currencies
-- **Time Ago**: Human-readable timestamps
-
-### Economic Calendar
-
-**Real 2025 Events**:
-
-- Federal Reserve FOMC meetings (8 per year)
-- ECB Governing Council (every 6 weeks)
-- RBNZ OCR decisions (quarterly)
-- SARB MPC meetings (6 per year)
-- Monthly CPI releases (US, NZ, ZA)
-
-## 🛡️ Security
-
-### Best Practices Implemented
-
-- ✅ **API Key Protection**: All external API calls made server-side
-- ✅ **Environment Variables**: Sensitive data never exposed to frontend
-- ✅ **CORS Protection**: API routes secured against unauthorized access
-- ✅ **Input Validation**: All user inputs validated and sanitized
-- ✅ **Error Handling**: Graceful error handling without exposing system details
-
-### Security Headers
-
-The application implements security headers through Vercel:
-
-- Content Security Policy (CSP)
-- X-Frame-Options
-- X-Content-Type-Options
-- Referrer-Policy
-
-## ⚡ Performance
-
-### Optimization Features
-
-- **Memoization**: React.useCallback and useMemo for optimal performance
-- **Lazy Loading**: Components loaded on demand
-- **Caching**: API responses cached for improved speed
-- **Code Splitting**: Automatic code splitting with Next.js
-- **Image Optimization**: Next.js automatic image optimization
-
-### Performance Metrics
-
-- **First Contentful Paint**: < 1.5s
-- **Largest Contentful Paint**: < 2.5s
-- **Cumulative Layout Shift**: < 0.1
-- **Time to Interactive**: < 3.0s
-
-## 🌐 Browser Support
-
-- ✅ Chrome 90+
-- ✅ Firefox 88+
-- ✅ Safari 14+
-- ✅ Edge 90+
-- ✅ Mobile browsers (iOS Safari, Chrome Mobile)
-
-## 🤝 Contributing
-
-### Getting Started
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow ESLint configuration
-- Add JSDoc comments for new functions
-- Include error handling for all API calls
-- Test on multiple screen sizes
-- Ensure accessibility compliance
-
-### Code Style
-
-```javascript
-// Use descriptive function names
-const calculateMovingAverage = (data, period) => {
-  // Implementation
-};
-
-// Implement error handling
-try {
-  const data = await fetchHistoricalData(pair);
-  processData(data);
-} catch (error) {
-  handleError(error);
-}
-```
 
 ## 📝 License
 

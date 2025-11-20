@@ -706,18 +706,26 @@ const FXTracker = () => {
     
     const historical = historicalData[selectedPair];
     const forecastData = forecast && forecast[selectedPair] ? forecast[selectedPair].data || [] : [];
-    
+
     const sortedHistorical = [...historical].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    const lastHistoricalDate = sortedHistorical.length > 0 ? 
-      new Date(sortedHistorical[sortedHistorical.length - 1].date) : new Date();
-    
+
+    // Filter historical data by date range
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+    const filteredHistorical = sortedHistorical.filter(item => {
+      const itemDate = new Date(item.date);
+      return itemDate >= startDate && itemDate <= endDate;
+    });
+
+    const lastHistoricalDate = filteredHistorical.length > 0 ?
+      new Date(filteredHistorical[filteredHistorical.length - 1].date) : new Date();
+
     const validForecastData = forecastData
       .filter(item => new Date(item.date) > lastHistoricalDate)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     const combinedData = [
-      ...sortedHistorical.map(item => ({
+      ...filteredHistorical.map(item => ({
         ...item,
         isForecast: false,
         type: 'historical'
@@ -732,9 +740,9 @@ const FXTracker = () => {
         type: 'forecast'
       }))
     ];
-    
+
     return combinedData.sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [historicalData, selectedPair, forecast]);
+  }, [historicalData, selectedPair, forecast, dateRange]);
 
   // Handle pair changes
   const handlePairChange = useCallback((base, quote) => {
