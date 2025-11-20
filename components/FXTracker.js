@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Newspaper, BarChart3, Globe, Calendar, AlertCircle, Activity, Target, Shield, Edit3, Check, X, Wifi, WifiOff, Clock, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Newspaper, BarChart3, Globe, Calendar, AlertCircle, Activity, Target, Shield, Edit3, Check, X, Wifi, WifiOff, Clock, AlertTriangle, Maximize, Minimize } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
 
 const FXTracker = () => {
@@ -34,6 +34,7 @@ const FXTracker = () => {
   const [forecastAlgorithm, setForecastAlgorithm] = useState('ensemble');
   const [showForecast, setShowForecast] = useState(true);
   const [chartType, setChartType] = useState('line');
+  const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [indicators, setIndicators] = useState({
     sma5: true,
     sma20: true,
@@ -1101,9 +1102,6 @@ const FXTracker = () => {
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                   <Activity className="h-5 w-5 mr-2" />
                   {selectedPair} - Live Market Analysis
-                  {loadingState.historical === 'success' && (
-                    <span className="text-sm text-green-600 font-normal ml-2">• Real API data</span>
-                  )}
                 </h2>
                 {historicalData[selectedPair] && (
                   <button
@@ -1133,15 +1131,14 @@ const FXTracker = () => {
               ) : historicalData[selectedPair] ? (
                 <div className="space-y-8">
                   {/* Historical Price Chart */}
-                  <div>
+                  <div className={isChartFullscreen ? 'fixed inset-0 z-50 bg-white p-6' : ''}>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-medium text-gray-900 flex items-center">
                         <BarChart3 className="h-4 w-4 mr-2" />
                         Historical Price Analysis
-                        <span className="text-sm text-green-600 font-normal ml-2">• Live API data</span>
                       </h3>
 
-                      {/* Date Range Selection */}
+                      {/* Date Range Selection & Fullscreen Button */}
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
                           <label className="text-sm font-medium text-gray-700">From:</label>
@@ -1172,10 +1169,21 @@ const FXTracker = () => {
                           <RefreshCw className={`h-3 w-3 mr-1 ${loadingState.historical === 'loading' ? 'animate-spin' : ''}`} />
                           Apply
                         </button>
+                        <button
+                          onClick={() => setIsChartFullscreen(!isChartFullscreen)}
+                          className="px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm flex items-center"
+                          title={isChartFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
+                        >
+                          {isChartFullscreen ? (
+                            <Minimize className="h-4 w-4" />
+                          ) : (
+                            <Maximize className="h-4 w-4" />
+                          )}
+                        </button>
                       </div>
                     </div>
 
-                    <div style={{ height: CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
+                    <div style={{ height: isChartFullscreen ? 'calc(100vh - 120px)' : CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
                       <HistoricalPriceChart data={prepareCombinedChartData()} />
                     </div>
                   </div>
@@ -1263,18 +1271,18 @@ const FXTracker = () => {
 
                       {/* Algorithm Info */}
                       {forecast && forecast[selectedPair] && (
-                        <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div className="grid grid-cols-3 gap-2 text-sm">
                           <div className="bg-white p-2 rounded">
-                            <span className="text-gray-600">Algorithm:</span>
-                            <span className="font-semibold ml-1">{forecast[selectedPair].algorithm}</span>
+                            <span className="text-gray-700 font-medium">Algorithm:</span>
+                            <span className="font-semibold ml-1 text-gray-900">{forecast[selectedPair].algorithm}</span>
                           </div>
                           <div className="bg-white p-2 rounded">
-                            <span className="text-gray-600">Confidence:</span>
-                            <span className="font-semibold ml-1">{(forecast[selectedPair].confidence * 100).toFixed(1)}%</span>
+                            <span className="text-gray-700 font-medium">Confidence:</span>
+                            <span className="font-semibold ml-1 text-gray-900">{(forecast[selectedPair].confidence * 100).toFixed(1)}%</span>
                           </div>
                           <div className="bg-white p-2 rounded">
-                            <span className="text-gray-600">Accuracy:</span>
-                            <span className="font-semibold ml-1">{(forecast[selectedPair].accuracy * 100).toFixed(1)}%</span>
+                            <span className="text-gray-700 font-medium">Accuracy:</span>
+                            <span className="font-semibold ml-1 text-gray-900">{(forecast[selectedPair].accuracy * 100).toFixed(1)}%</span>
                           </div>
                         </div>
                       )}
