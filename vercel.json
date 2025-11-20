@@ -1,11 +1,4 @@
 {
-  "env": {
-    "NEWS_API_KEY": "@news-api-key",
-    "GNEWS_API_KEY": "@gnews-api-key",
-    "TRADING_ECONOMICS_API_KEY": "@trading-economics-api-key",
-    "EXCHANGE_RATE_API_KEY": "@exchange-rate-api-key",
-    "PYTHON_FORECAST_SERVICE_URL": "@python-forecast-service-url"
-  },
   "functions": {
     "app/api/**/*.js": {
       "maxDuration": 30
