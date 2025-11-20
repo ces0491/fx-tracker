@@ -70,17 +70,16 @@ See [FORECASTING.md](FORECASTING.md) for detailed documentation.
 ### 📰 Market Intelligence (Live Data!)
 
 - **Real Financial News**: Live forex news from RSS feeds (ForexLive)
-- **Multiple News Sources**: NewsAPI.org, GNews, RSS aggregation with fallback
+- **Multiple News Sources**: NewsAPI.org (free), GNews (free), RSS aggregation with fallback
 - **AI Sentiment Analysis**: Automatic bullish/bearish/neutral classification
 - **Impact Classification**: High/Medium/Low impact rating
 - **Currency Extraction**: Automatically identifies relevant currencies
-- **Economic Calendar**: Real events including:
+- **Economic Calendar**: Real 2025 events including:
   - Federal Reserve FOMC meetings
   - ECB Governing Council meetings
   - RBNZ OCR decisions
   - SARB MPC meetings
   - CPI releases (US, NZ, South Africa)
-- **Multiple Calendar Sources**: TradingEconomics API, ForexFactory, Static calendar
 
 ### 🔒 Security & Performance
 
@@ -162,18 +161,13 @@ See [FORECASTING.md](FORECASTING.md) for detailed documentation.
    cp .env.example .env.local
    ```
 
-2. **Add optional API keys** (see [.env.example](.env.example) for details):
+2. **Add FREE API keys** (see [.env.example](.env.example) for step-by-step instructions):
 
    ```env
-   # Optional - for better news coverage
-   NEWS_API_KEY=your_newsapi_key
-   GNEWS_API_KEY=your_gnews_key
-
-   # Optional - for comprehensive economic calendar
-   TRADING_ECONOMICS_API_KEY=your_te_key
-
-   # Optional - for higher rate limits
-   EXCHANGE_RATE_API_KEY=your_key
+   # 100% FREE APIs - Get all 3 in ~5 minutes!
+   NEWS_API_KEY=your_newsapi_key           # newsapi.org
+   GNEWS_API_KEY=your_gnews_key            # gnews.io
+   EXCHANGE_RATE_API_KEY=your_key          # exchangerate-api.com
    ```
 
 ### Optional: Python ML Forecasting Service
@@ -208,14 +202,15 @@ The app uses free fallback services:
 - **News**: ForexLive RSS (free, no key)
 - **Events**: Static 2025 economic calendar
 
-### Optional API Keys for Enhanced Features
+### Free API Keys for Enhanced Features (100% Free!)
 
-| API | Purpose | Free Tier | Get Key |
-|-----|---------|-----------|---------|
-| **NewsAPI.org** | Better news coverage | 100 req/day | [Sign up](https://newsapi.org/) |
-| **GNews API** | Alternative news | 100 req/day | [Sign up](https://gnews.io/) |
-| **TradingEconomics** | Real-time events | Paid | [Sign up](https://tradingeconomics.com/api) |
-| **ExchangeRate-API** | Higher rate limits | 1,500/month | [Sign up](https://app.exchangerate-api.com/sign-up) |
+| API | Purpose | Free Tier | Setup Time |
+|-----|---------|-----------|------------|
+| **NewsAPI.org** | Better news coverage | 100 req/day | [Sign up](https://newsapi.org/) - 2 min |
+| **GNews API** | Alternative news | 100 req/day | [Sign up](https://gnews.io/) - 2 min |
+| **ExchangeRate-API** | Higher rate limits | 1,500/month | [Sign up](https://app.exchangerate-api.com/sign-up) - 1 min |
+
+**Note**: All APIs above are 100% free forever. No credit card required!
 
 ### Environment Variables
 

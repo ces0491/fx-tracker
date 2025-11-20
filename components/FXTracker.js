@@ -27,7 +27,7 @@ const FXTracker = () => {
 
   // Enhanced features
   const [dateRange, setDateRange] = useState({
-    start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
   });
   const [forecastDays, setForecastDays] = useState(30);
@@ -555,20 +555,35 @@ const FXTracker = () => {
 
   // Chart components
   const HistoricalPriceChart = useCallback(({ data }) => {
-    const historicalOnly = data.filter(item => !item.isForecast && item.type !== 'forecast');
-    const chartDomain = calculateChartDomain(historicalOnly);
-    
+    const historicalData = data.filter(item => !item.isForecast && item.type !== 'forecast');
+    const forecastData = showForecast && forecast && forecast[selectedPair] && forecast[selectedPair].data
+      ? data.filter(item => item.isForecast || item.type === 'forecast')
+      : [];
+
+    // Combine historical and forecast for unified chart
+    const combinedData = showForecast && forecastData.length > 0
+      ? [...historicalData, ...forecastData]
+      : historicalData;
+
+    // Calculate domain based on all data
+    const chartDomain = calculateChartDomain(combinedData);
+
+    // Find the last historical date for the vertical separator
+    const lastHistoricalDate = historicalData.length > 0
+      ? historicalData[historicalData.length - 1].date
+      : null;
+
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={historicalOnly} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+        <LineChart data={combinedData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis 
-            dataKey="date" 
+          <XAxis
+            dataKey="date"
             tickFormatter={formatDateForChart}
             stroke="#374151"
             tick={{ fontSize: 12, fontWeight: 500 }}
           />
-          <YAxis 
+          <YAxis
             domain={chartDomain}
             tickFormatter={formatRate}
             stroke="#374151"
@@ -576,22 +591,37 @@ const FXTracker = () => {
             width={80}
           />
           <Tooltip content={<CustomTooltip />} />
-          
-          <Line 
-            type="monotone" 
-            dataKey="close" 
+
+          {/* Historical price line */}
+          <Line
+            type="monotone"
+            dataKey="close"
             stroke="#1d4ed8"
             strokeWidth={3}
             dot={false}
             connectNulls={false}
             name="Close Price"
           />
-          
+
+          {/* Forecast price line - dashed */}
+          {showForecast && (
+            <Line
+              type="monotone"
+              dataKey="rate"
+              stroke="#7c3aed"
+              strokeWidth={3}
+              strokeDasharray="8 4"
+              dot={false}
+              connectNulls={false}
+              name="Forecast"
+            />
+          )}
+
           {indicators.sma5 && (
-            <Line 
-              type="monotone" 
-              dataKey="sma5" 
-              stroke="#059669" 
+            <Line
+              type="monotone"
+              dataKey="sma5"
+              stroke="#059669"
               strokeWidth={2.5}
               strokeDasharray="4 4"
               dot={false}
@@ -600,10 +630,10 @@ const FXTracker = () => {
             />
           )}
           {indicators.sma20 && (
-            <Line 
-              type="monotone" 
-              dataKey="sma20" 
-              stroke="#dc2626" 
+            <Line
+              type="monotone"
+              dataKey="sma20"
+              stroke="#dc2626"
               strokeWidth={2.5}
               strokeDasharray="4 4"
               dot={false}
@@ -611,23 +641,23 @@ const FXTracker = () => {
               name="20-Day SMA"
             />
           )}
-          
+
           {indicators.bollinger && (
             <>
-              <Line 
-                type="monotone" 
-                dataKey="bollingerUpper" 
-                stroke="#7c2d12" 
+              <Line
+                type="monotone"
+                dataKey="bollingerUpper"
+                stroke="#7c2d12"
                 strokeWidth={1.5}
                 strokeDasharray="2 2"
                 dot={false}
                 connectNulls={false}
                 name="Bollinger Upper"
               />
-              <Line 
-                type="monotone" 
-                dataKey="bollingerLower" 
-                stroke="#7c2d12" 
+              <Line
+                type="monotone"
+                dataKey="bollingerLower"
+                stroke="#7c2d12"
                 strokeWidth={1.5}
                 strokeDasharray="2 2"
                 dot={false}
@@ -636,20 +666,35 @@ const FXTracker = () => {
               />
             </>
           )}
-          
+
+          {/* Vertical line separator between historical and forecast */}
+          {showForecast && lastHistoricalDate && forecastData.length > 0 && (
+            <ReferenceLine
+              x={lastHistoricalDate}
+              stroke="#9333ea"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              label={{
+                value: "Forecast Start",
+                position: "top",
+                style: { fontSize: 12, fontWeight: 'bold', fill: '#9333ea' }
+              }}
+            />
+          )}
+
           {forecast && forecast[selectedPair] && forecast[selectedPair].support && (
-            <ReferenceLine 
-              y={forecast[selectedPair].support} 
-              stroke="#dc2626" 
+            <ReferenceLine
+              y={forecast[selectedPair].support}
+              stroke="#dc2626"
               strokeWidth={2}
               strokeDasharray="3 3"
               label={{ value: "Support", position: "insideTopLeft", style: { fontWeight: 'bold', fill: '#dc2626' } }}
             />
           )}
           {forecast && forecast[selectedPair] && forecast[selectedPair].resistance && (
-            <ReferenceLine 
-              y={forecast[selectedPair].resistance} 
-              stroke="#059669" 
+            <ReferenceLine
+              y={forecast[selectedPair].resistance}
+              stroke="#059669"
               strokeWidth={2}
               strokeDasharray="3 3"
               label={{ value: "Resistance", position: "insideBottomLeft", style: { fontWeight: 'bold', fill: '#059669' } }}
@@ -658,59 +703,7 @@ const FXTracker = () => {
         </LineChart>
       </ResponsiveContainer>
     );
-  }, [indicators, formatDateForChart, formatRate, forecast, selectedPair, calculateChartDomain]);
-
-  const ForecastChart = useCallback(({ historicalData, forecastData }) => {
-    if (!forecastData || forecastData.length === 0) return null;
-    
-    const lastHistoricalPoints = historicalData.slice(-3);
-    const combinedData = [
-      ...lastHistoricalPoints.map(item => ({
-        date: item.date,
-        rate: item.close,
-        type: 'historical'
-      })),
-      ...forecastData.map(item => ({
-        date: item.date,
-        rate: item.rate,
-        type: 'forecast'
-      }))
-    ];
-    
-    const chartDomain = calculateChartDomain(combinedData);
-    
-    return (
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={combinedData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis 
-            dataKey="date" 
-            tickFormatter={formatDateForChart}
-            stroke="#374151"
-            tick={{ fontSize: 12, fontWeight: 500 }}
-          />
-          <YAxis 
-            domain={chartDomain}
-            tickFormatter={formatRate}
-            stroke="#374151"
-            tick={{ fontSize: 12, fontWeight: 500 }}
-            width={80}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          
-          <Line 
-            type="monotone" 
-            dataKey="rate"
-            stroke="#7c3aed"
-            strokeWidth={3}
-            dot={false}
-            connectNulls={false}
-            name="Price Projection"
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    );
-  }, [formatDateForChart, formatRate, calculateChartDomain]);
+  }, [indicators, formatDateForChart, formatRate, forecast, selectedPair, calculateChartDomain, showForecast]);
 
   // Data preparation
   const prepareCombinedChartData = useCallback(() => {
@@ -1141,12 +1134,47 @@ const FXTracker = () => {
                 <div className="space-y-8">
                   {/* Historical Price Chart */}
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                      <BarChart3 className="h-4 w-4 mr-2" />
-                      Historical Price Analysis
-                      <span className="text-sm text-green-600 font-normal ml-2">• Live API data</span>
-                    </h3>
-                    
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Historical Price Analysis
+                        <span className="text-sm text-green-600 font-normal ml-2">• Live API data</span>
+                      </h3>
+
+                      {/* Date Range Selection */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-gray-700">From:</label>
+                          <input
+                            type="date"
+                            value={dateRange.start}
+                            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                            max={dateRange.end}
+                            className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-gray-700">To:</label>
+                          <input
+                            type="date"
+                            value={dateRange.end}
+                            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                            min={dateRange.start}
+                            max={new Date().toISOString().split('T')[0]}
+                            className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          />
+                        </div>
+                        <button
+                          onClick={() => fetchHistoricalData(selectedPair)}
+                          disabled={loadingState.historical === 'loading'}
+                          className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm flex items-center"
+                        >
+                          <RefreshCw className={`h-3 w-3 mr-1 ${loadingState.historical === 'loading' ? 'animate-spin' : ''}`} />
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+
                     <div style={{ height: CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
                       <HistoricalPriceChart data={prepareCombinedChartData()} />
                     </div>
@@ -1180,7 +1208,7 @@ const FXTracker = () => {
                           <select
                             value={forecastAlgorithm}
                             onChange={(e) => setForecastAlgorithm(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 font-medium"
                           >
                             <optgroup label="JavaScript Algorithms (Fast)">
                               <option value="trend">Trend-Based</option>
@@ -1250,33 +1278,6 @@ const FXTracker = () => {
                           </div>
                         </div>
                       )}
-                    </div>
-                  )}
-
-                  {/* Forecast Chart */}
-                  {showForecast && forecast && forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
-                    <div className="mt-6">
-                      <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                        <Target className="h-4 w-4 mr-2" />
-                        {forecastDays}-Day Price Forecast
-                        <span className="text-sm text-purple-600 font-normal ml-2">
-                          • {forecast[selectedPair].algorithm}
-                        </span>
-                      </h3>
-
-                      <div style={{ height: CONFIG.CHART_HEIGHT.forecast, minHeight: CONFIG.CHART_HEIGHT.forecast }}>
-                        <ForecastChart
-                          historicalData={historicalData[selectedPair]}
-                          forecastData={forecast[selectedPair].data}
-                        />
-                      </div>
-                      
-                      <div className="mt-3 p-3 bg-purple-50 rounded-lg">
-                        <p className="text-sm text-purple-700">
-                          <span className="font-medium">Simple Forecast:</span> Basic trend projection from live market data. 
-                          Forecast scale matches historical data scale as requested.
-                        </p>
-                      </div>
                     </div>
                   )}
 
@@ -1520,13 +1521,6 @@ const FXTracker = () => {
                   <p className="text-gray-500">No news available</p>
                 </div>
               )}
-              
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-xs text-green-700">
-                  ✅ <strong>Live Data:</strong> Using real exchange rates from exchangerate.host API. 
-                  Forecast scale matches historical scale. Confidence bands removed as requested.
-                </p>
-              </div>
             </div>
           </div>
         </div>
