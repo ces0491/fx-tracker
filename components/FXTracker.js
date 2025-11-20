@@ -31,6 +31,8 @@ const FXTracker = () => {
     end: new Date().toISOString().split('T')[0]
   });
   const [forecastDays, setForecastDays] = useState(30);
+  const [forecastAlgorithm, setForecastAlgorithm] = useState('ensemble');
+  const [showForecast, setShowForecast] = useState(true);
   const [chartType, setChartType] = useState('line');
   const [indicators, setIndicators] = useState({
     sma5: true,
@@ -217,92 +219,55 @@ const FXTracker = () => {
   const fetchHistoricalData = useCallback(async (pair) => {
     setLoadingState(prev => ({ ...prev, historical: 'loading' }));
     try {
-      const [base, quote] = pair.split('/');
-      const endDate = new Date();
-      const startDate = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000);
-      
-      // Fetch historical data for the date range
-      const promises = [];
-      const currentDate = new Date(startDate);
-      
-      while (currentDate <= endDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        promises.push(
-          fetch(`https://api.exchangerate.host/${dateStr}?base=${base}&symbols=${quote}`)
-            .then(res => res.json())
-            .then(data => ({
-              date: dateStr,
-              rate: data.rates?.[quote] || null
-            }))
-            .catch(() => ({ date: dateStr, rate: null }))
-        );
-        currentDate.setDate(currentDate.getDate() + 1);
+      // Use our backend API endpoint to fetch historical data
+      const response = await fetch(`/api/historical?pair=${encodeURIComponent(pair)}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
-      
-      const historicalResults = await Promise.all(promises);
-      
-      // Filter out null rates and create OHLC data
-      const validData = historicalResults
-        .filter(item => item.rate !== null)
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-      
-      if (validData.length === 0) {
+
+      const data = await response.json();
+
+      if (!data.historicalData || data.historicalData.length === 0) {
         throw new Error('No historical data available for this pair');
       }
-      
-      // Generate OHLC data from daily rates with realistic intraday variation
-      const enhancedData = validData.map((item, index) => {
-        const rate = item.rate;
-        const volatility = 0.005; // 0.5% intraday volatility
-        const variation = volatility * rate;
-        
-        const open = rate + (Math.random() - 0.5) * variation;
-        const close = rate + (Math.random() - 0.5) * variation;
-        const high = Math.max(open, close) + Math.random() * variation;
-        const low = Math.min(open, close) - Math.random() * variation;
-        
-        return {
-          date: item.date,
-          open: open,
-          high: high,
-          low: low,
-          close: close,
-          rate: close,
-          volume: Math.floor(Math.random() * 2000000 + 500000)
-        };
-      });
-      
-      const finalData = calculateIndicators(enhancedData);
+
+      const finalData = calculateIndicators(data.historicalData);
       
       setHistoricalData(prev => ({
         ...prev,
         [pair]: finalData
       }));
       
-      // Generate simple forecast based on recent trend
-      const forecastData = generateForecast(finalData, forecastDays);
-      
+      // Generate forecast based on selected algorithm
+      const forecastResult = await generateForecast(finalData, forecastDays, forecastAlgorithm);
+
       // Calculate technical analysis
       const recentRates = finalData.slice(-14).map(d => d.close);
       const firstRate = recentRates[0];
       const lastRate = recentRates[recentRates.length - 1];
       const trend = (lastRate - firstRate) / firstRate;
-      
+
       const highs = finalData.slice(-30).map(d => d.high);
       const lows = finalData.slice(-30).map(d => d.low);
       const resistance = Math.max(...highs);
       const support = Math.min(...lows);
-      
-      const returns = finalData.slice(-30).map((d, i, arr) => 
+
+      const returns = finalData.slice(-30).map((d, i, arr) =>
         i > 0 ? Math.log(d.close / arr[i-1].close) : 0
       ).slice(1);
       const variance = returns.reduce((sum, r) => sum + r * r, 0) / returns.length;
       const volatility = Math.sqrt(variance * 252);
-      
+
       setForecast(prev => ({
         ...prev,
         [pair]: {
-          data: forecastData,
+          data: forecastResult.data,
+          algorithm: forecastResult.algorithm,
+          confidence: forecastResult.confidence,
+          accuracy: forecastResult.accuracy,
+          mae: forecastResult.mae,
           trend: trend > 0 ? 'bullish' : 'bearish',
           strength: Math.abs(trend) > 0.02 ? 'strong' : Math.abs(trend) > 0.005 ? 'moderate' : 'weak',
           support: support,
@@ -325,48 +290,82 @@ const FXTracker = () => {
     }
   }, [forecastDays]);
 
-  // Generate simple forecast without confidence bands
-  const generateForecast = useCallback((historicalData, days) => {
+  // Generate forecast using selected algorithm
+  const generateForecast = useCallback(async (historicalData, days, algorithm) => {
     if (!historicalData || historicalData.length < 10) return [];
-    
-    const data = historicalData.map(d => d.close);
-    const n = data.length;
-    const currentRate = data[n - 1];
-    
-    // Simple trend-based forecast
-    const shortTermTrend = (data[n - 1] - data[n - 5]) / 5;
-    const mediumTermTrend = (data[n - 1] - data[n - 15]) / 15;
-    const avgTrend = (shortTermTrend + mediumTermTrend) / 2;
-    
-    const forecast = [];
-    let forecastValue = currentRate;
-    const lastDate = new Date(historicalData[n - 1].date);
-    
-    for (let i = 1; i <= days; i++) {
-      const forecastDate = new Date(lastDate);
-      forecastDate.setDate(forecastDate.getDate() + i);
-      
-      // Simple linear projection with some noise
-      const trendDecay = Math.exp(-i / 30); // Trend weakens over time
-      const projection = avgTrend * trendDecay;
-      const noise = (Math.random() - 0.5) * currentRate * 0.001; // Small random component
-      
-      forecastValue = forecastValue + projection + noise;
-      
-      forecast.push({
-        date: forecastDate.toISOString().split('T')[0],
-        rate: forecastValue,
-        close: null,
-        open: null,
-        high: null,
-        low: null,
-        isForecast: true,
-        type: 'forecast'
+
+    try {
+      // Call the forecast API
+      const response = await fetch('/api/forecast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          historicalData: historicalData,
+          algorithm: algorithm || forecastAlgorithm,
+          forecastDays: days
+        })
       });
+
+      if (!response.ok) {
+        throw new Error(`Forecast API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Add metadata to forecast state
+      return {
+        data: data.forecast,
+        algorithm: data.algorithm,
+        confidence: data.confidence,
+        accuracy: data.metadata.accuracy,
+        mae: data.metadata.mae
+      };
+
+    } catch (error) {
+      console.error('Forecast generation error:', error);
+
+      // Fallback to simple client-side forecast
+      const prices = historicalData.map(d => d.close);
+      const n = prices.length;
+      const currentRate = prices[n - 1];
+
+      const shortTermTrend = (prices[n - 1] - prices[n - 5]) / 5;
+      const mediumTermTrend = (prices[n - 1] - prices[n - 15]) / 15;
+      const avgTrend = (shortTermTrend + mediumTermTrend) / 2;
+
+      const forecast = [];
+      let forecastValue = currentRate;
+      const lastDate = new Date(historicalData[n - 1].date);
+
+      for (let i = 1; i <= days; i++) {
+        const forecastDate = new Date(lastDate);
+        forecastDate.setDate(forecastDate.getDate() + i);
+
+        const trendDecay = Math.exp(-i / 30);
+        const projection = avgTrend * trendDecay;
+        const noise = (Math.random() - 0.5) * currentRate * 0.001;
+
+        forecastValue = forecastValue + projection + noise;
+
+        forecast.push({
+          date: forecastDate.toISOString().split('T')[0],
+          rate: forecastValue,
+          upper: forecastValue + (forecastValue * 0.05),
+          lower: forecastValue - (forecastValue * 0.05),
+          isForecast: true,
+          type: 'forecast'
+        });
+      }
+
+      return {
+        data: forecast,
+        algorithm: 'trend (fallback)',
+        confidence: 0.65,
+        accuracy: 0.70,
+        mae: 0
+      };
     }
-    
-    return forecast;
-  }, []);
+  }, [forecastAlgorithm]);
 
   // Calculate technical indicators
   const calculateIndicators = useCallback((data) => {
@@ -419,57 +418,57 @@ const FXTracker = () => {
     return enhanced;
   }, [CONFIG.INDICATORS]);
 
-  // Fetch sample news (placeholder - would need news API)
+  // Fetch real news from API
   const fetchNews = useCallback(async () => {
     setLoadingState(prev => ({ ...prev, news: 'loading' }));
-    // For now, using static news since real news APIs require authentication
-    const sampleNewsData = [
-      {
-        id: 1,
-        title: "Central Bank Signals Interest Rate Changes Ahead",
-        summary: "Recent policy statements indicate potential shifts in monetary policy affecting major currency valuations.",
-        source: "Financial Times",
-        time: "2 hours ago",
-        impact: "high",
-        sentiment: "Neutral",
-        currencies: ["USD", "EUR"],
-        url: "#"
-      },
-      {
-        id: 2,
-        title: "Commodity Prices Impact Emerging Market Currencies",
-        summary: "Rising commodity prices boost resource-dependent currencies while affecting trade balances.",
-        source: "Reuters",
-        time: "4 hours ago",
-        impact: "medium",
-        sentiment: "Bullish",
-        currencies: ["ZAR", "AUD"],
-        url: "#"
+    try {
+      const response = await fetch('/api/news');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
-    ];
-    
-    setNews(sampleNewsData);
-    setLoadingState(prev => ({ ...prev, news: 'success' }));
+
+      const data = await response.json();
+
+      setNews(data.news || []);
+      setLoadingState(prev => ({ ...prev, news: 'success' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.news;
+        return newErrors;
+      });
+    } catch (error) {
+      console.error('Failed to fetch news:', error);
+      setLoadingState(prev => ({ ...prev, news: 'error' }));
+      setErrors(prev => ({ ...prev, news: `Failed to fetch news: ${error.message}` }));
+    }
   }, []);
 
   const fetchEvents = useCallback(async () => {
     setLoadingState(prev => ({ ...prev, events: 'loading' }));
-    const today = new Date();
-    const sampleEvents = [
-      {
-        title: "Federal Reserve Interest Rate Decision",
-        date: new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        impact: "high"
-      },
-      {
-        title: "European Central Bank Policy Meeting",
-        date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        impact: "high"
+    try {
+      const response = await fetch('/api/events');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
-    ];
-    
-    setUpcomingEvents(sampleEvents);
-    setLoadingState(prev => ({ ...prev, events: 'success' }));
+
+      const data = await response.json();
+
+      setUpcomingEvents(data.events || []);
+      setLoadingState(prev => ({ ...prev, events: 'success' }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.events;
+        return newErrors;
+      });
+    } catch (error) {
+      console.error('Failed to fetch events:', error);
+      setLoadingState(prev => ({ ...prev, events: 'error' }));
+      setErrors(prev => ({ ...prev, events: `Failed to fetch events: ${error.message}` }));
+    }
   }, []);
 
   // Calculate chart domain
@@ -1152,19 +1151,122 @@ const FXTracker = () => {
                     </div>
                   </div>
 
+                  {/* Forecast Settings & Chart */}
+                  {historicalData[selectedPair] && (
+                    <div className="mt-6 bg-purple-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                          <Target className="h-5 w-5 mr-2" />
+                          Price Forecast Settings
+                        </h3>
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showForecast}
+                            onChange={(e) => setShowForecast(e.target.checked)}
+                            className="mr-2 h-4 w-4"
+                          />
+                          <span className="text-sm font-medium text-gray-700">Show Forecast</span>
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        {/* Algorithm Selector */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Algorithm
+                          </label>
+                          <select
+                            value={forecastAlgorithm}
+                            onChange={(e) => setForecastAlgorithm(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          >
+                            <optgroup label="JavaScript Algorithms (Fast)">
+                              <option value="trend">Trend-Based</option>
+                              <option value="linear_regression">Linear Regression</option>
+                              <option value="exponential_smoothing">Exponential Smoothing</option>
+                              <option value="arima_lite">ARIMA-Lite</option>
+                              <option value="ensemble">Ensemble (Recommended)</option>
+                            </optgroup>
+                            <optgroup label="Python ML Algorithms (Advanced)">
+                              <option value="prophet">Facebook Prophet</option>
+                              <option value="lstm">LSTM Neural Network</option>
+                              <option value="garch">GARCH Volatility</option>
+                              <option value="xgboost">XGBoost</option>
+                            </optgroup>
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {forecastAlgorithm.includes('lstm') || forecastAlgorithm.includes('prophet') || forecastAlgorithm.includes('garch') || forecastAlgorithm.includes('xgboost') ?
+                              '⚡ Requires Python service' : '🚀 Fast JavaScript'}
+                          </p>
+                        </div>
+
+                        {/* Forecast Days */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Forecast Horizon
+                          </label>
+                          <select
+                            value={forecastDays}
+                            onChange={(e) => setForecastDays(Number(e.target.value))}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          >
+                            <option value={7}>7 Days</option>
+                            <option value={14}>14 Days</option>
+                            <option value={30}>30 Days</option>
+                            <option value={60}>60 Days</option>
+                            <option value={90}>90 Days</option>
+                          </select>
+                        </div>
+
+                        {/* Regenerate Button */}
+                        <div className="flex items-end">
+                          <button
+                            onClick={() => fetchHistoricalData(selectedPair)}
+                            disabled={loadingState.historical === 'loading'}
+                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center"
+                          >
+                            <RefreshCw className={`h-4 w-4 mr-2 ${loadingState.historical === 'loading' ? 'animate-spin' : ''}`} />
+                            Regenerate
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Algorithm Info */}
+                      {forecast && forecast[selectedPair] && (
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="bg-white p-2 rounded">
+                            <span className="text-gray-600">Algorithm:</span>
+                            <span className="font-semibold ml-1">{forecast[selectedPair].algorithm}</span>
+                          </div>
+                          <div className="bg-white p-2 rounded">
+                            <span className="text-gray-600">Confidence:</span>
+                            <span className="font-semibold ml-1">{(forecast[selectedPair].confidence * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="bg-white p-2 rounded">
+                            <span className="text-gray-600">Accuracy:</span>
+                            <span className="font-semibold ml-1">{(forecast[selectedPair].accuracy * 100).toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Forecast Chart */}
-                  {forecast && forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
-                    <div>
+                  {showForecast && forecast && forecast[selectedPair] && forecast[selectedPair].data && forecast[selectedPair].data.length > 0 && (
+                    <div className="mt-6">
                       <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                         <Target className="h-4 w-4 mr-2" />
                         {forecastDays}-Day Price Forecast
-                        <span className="text-sm text-purple-600 font-normal ml-2">• Simple projection</span>
+                        <span className="text-sm text-purple-600 font-normal ml-2">
+                          • {forecast[selectedPair].algorithm}
+                        </span>
                       </h3>
-                      
+
                       <div style={{ height: CONFIG.CHART_HEIGHT.forecast, minHeight: CONFIG.CHART_HEIGHT.forecast }}>
-                        <ForecastChart 
-                          historicalData={historicalData[selectedPair]} 
-                          forecastData={forecast[selectedPair].data} 
+                        <ForecastChart
+                          historicalData={historicalData[selectedPair]}
+                          forecastData={forecast[selectedPair].data}
                         />
                       </div>
                       

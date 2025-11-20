@@ -4,7 +4,9 @@ const nextConfig = {
   // trailingSlash: true,  // Optional: remove if not needed
   images: {
     unoptimized: true
-  }
+  },
+  // Enable standalone output for Docker deployments
+  output: 'standalone'
 }
 
 export default nextConfig

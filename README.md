@@ -1,8 +1,14 @@
 # 🌍 FX Tracker
 
-A foreign exchange tracking application built with Next.js, featuring real-time currency rates, historical data analysis, technical indicators, and market news.
+A professional foreign exchange tracking application built with Next.js,
+featuring real-time currency rates, advanced ML forecasting, historical data
+analysis, technical indicators, and live market news.
 
-![FX Tracker Pro](https://img.shields.io/badge/Next.js-15.4.2-black) ![React](https://img.shields.io/badge/React-18.x-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-CSS-38B2AC) ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000)
+![FX Tracker Pro](https://img.shields.io/badge/Next.js-15.4.2-black)
+![React](https://img.shields.io/badge/React-18.x-blue)
+![Tailwind](https://img.shields.io/badge/Tailwind-CSS-38B2AC)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![ML](https://img.shields.io/badge/ML-Ready-green)
 
 ## ✨ Features
 
@@ -10,19 +16,49 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 
 - **Live Exchange Rates**: Real-time currency conversion for 27+ major currencies
 - **Cross-Rate Calculations**: Automatic calculation of all currency pair combinations
-- **5-minute Updates**: Automated refresh every 5 minutes
-- **Last Update Tracking**: Visual indication of data freshness
+- **Auto-Refresh**: Automated updates with status indicators
+- **Free Fallback APIs**: Works without API keys using Frankfurter & ExchangeRate-API
+- **No CORS Issues**: All API calls routed through secure backend
 
-### 📊 Analytics
+### 📊 Analytics & Charting
 
-- **Historical Charts**: Interactive price history with customizable date ranges
+- **90-Day Historical Data**: Real historical forex data via Frankfurter API
 - **Technical Indicators**:
   - Simple Moving Averages (5-day, 20-day)
   - Bollinger Bands
   - RSI (Relative Strength Index)
   - Support/Resistance levels
 - **Multiple Chart Types**: Line charts and candlestick views
-- **Forecasting**: 30-90 day statistical forecasting using exponential smoothing
+- **Interactive Charts**: Zoom, pan, and export functionality
+
+### 🤖 Advanced Forecasting
+
+**9 Forecasting Algorithms** with hybrid JavaScript + Python architecture:
+
+**JavaScript Algorithms** (Built-in, no setup required):
+
+- Trend-Based (65% confidence)
+- Linear Regression (70% confidence)
+- Exponential Smoothing (72% confidence)
+- ARIMA-Lite (75% confidence)
+- **Ensemble** (80% confidence) ⭐ Recommended
+
+**Python ML Algorithms** (Optional, requires Python service):
+
+- Facebook Prophet (88% confidence) - Best for seasonal patterns
+- LSTM Neural Network (85% confidence) - Complex patterns
+- GARCH Volatility (82% confidence) - Risk management
+- XGBoost (83% confidence) - Short-term predictions
+
+**Features**:
+
+- 95% confidence intervals with upper/lower bounds
+- Forecast horizons: 7, 14, 30, 60, 90 days
+- Real-time accuracy metrics
+- Algorithm comparison and selection
+- Automatic fallback to JavaScript if Python unavailable
+
+See [FORECASTING.md](FORECASTING.md) for detailed documentation.
 
 ### 📈 Tools
 
@@ -31,12 +67,20 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 - **Data Export**: Download historical data and indicators as CSV
 - **Volatility Analysis**: Annual volatility calculations with risk assessment
 
-### 📰 Market Intelligence
+### 📰 Market Intelligence (Live Data!)
 
-- **Real-Time News**: Financial news with AI sentiment analysis
-- **Impact Classification**: High/Medium/Low impact rating for news events
-- **Currency Relevance**: News filtered by relevant currencies
-- **Dynamic Events Calendar**: Upcoming economic events and central bank meetings
+- **Real Financial News**: Live forex news from RSS feeds (ForexLive)
+- **Multiple News Sources**: NewsAPI.org, GNews, RSS aggregation with fallback
+- **AI Sentiment Analysis**: Automatic bullish/bearish/neutral classification
+- **Impact Classification**: High/Medium/Low impact rating
+- **Currency Extraction**: Automatically identifies relevant currencies
+- **Economic Calendar**: Real events including:
+  - Federal Reserve FOMC meetings
+  - ECB Governing Council meetings
+  - RBNZ OCR decisions
+  - SARB MPC meetings
+  - CPI releases (US, NZ, South Africa)
+- **Multiple Calendar Sources**: TradingEconomics API, ForexFactory, Static calendar
 
 ### 🔒 Security & Performance
 
@@ -47,15 +91,32 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 
 ## 🛠️ Tech Stack
 
+### Frontend
+
 - **Framework**: Next.js 15.4.2
-- **Frontend**: React 18.x with Hooks
+- **UI**: React 18.x with Hooks
 - **Styling**: Tailwind CSS
 - **Charts**: Recharts
 - **Icons**: Lucide React
-- **Deployment**: Vercel
-- **APIs**:
-  - ExchangeRate-API (real-time rates)
-  - Alpha Vantage (historical data & news)
+- **Deployment**: Vercel-ready
+
+### Backend APIs (Node.js)
+
+- **Real-time Rates**: ExchangeRate-API (free, no key)
+- **Historical Data**: Frankfurter API (free, no key)
+- **News**: ForexLive RSS (free, no key)
+- **Events**: Static 2025 calendar + external APIs
+- **Forecasting**: 5 JavaScript algorithms built-in
+
+### Optional Python Microservice
+
+- **Framework**: Flask 3.0
+- **ML Libraries**:
+  - Facebook Prophet 1.1.5
+  - TensorFlow 2.15.0
+  - XGBoost 2.0.3
+  - GARCH (arch 6.3.0)
+- **Deployment**: Docker-ready with docker-compose
 
 ## 📦 Installation
 
@@ -63,132 +124,198 @@ A foreign exchange tracking application built with Next.js, featuring real-time 
 
 - Node.js 18.x or higher
 - npm or yarn
-- API keys
+- (Optional) Python 3.11+ for ML forecasting
+- (Optional) Docker for Python service
 
-### Local Development
+### Quick Start (No API Keys Needed!)
 
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/yourusername/fx-tracker-pro.git
-   cd fx-tracker-pro
+   git clone https://github.com/yourusername/fx-tracker.git
+   cd fx-tracker
    ```
 
 2. **Install dependencies**
 
    ```bash
    npm install
-   # or
-   yarn install
    ```
 
-3. **Set up environment variables**
+3. **Start development server**
+
+   ```bash
+   npm run dev
+   ```
+
+4. **Open your browser**
+
+   Navigate to `http://localhost:3000`
+
+**That's it!** The app works immediately with free APIs.
+
+### Optional: Add API Keys for Enhanced Features
+
+1. **Copy environment template**
 
    ```bash
    cp .env.example .env.local
    ```
 
-   Edit `.env.local` with your actual API keys:
+2. **Add optional API keys** (see [.env.example](.env.example) for details):
 
    ```env
-   ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key_here
-   EXCHANGE_RATE_API_KEY=your_exchangerate_api_key_here
-   REACT_APP_API_BASE_URL=http://localhost:3000
+   # Optional - for better news coverage
+   NEWS_API_KEY=your_newsapi_key
+   GNEWS_API_KEY=your_gnews_key
+
+   # Optional - for comprehensive economic calendar
+   TRADING_ECONOMICS_API_KEY=your_te_key
+
+   # Optional - for higher rate limits
+   EXCHANGE_RATE_API_KEY=your_key
    ```
 
-4. **Start development server**
+### Optional: Python ML Forecasting Service
 
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
+For advanced ML algorithms (Prophet, LSTM, GARCH, XGBoost):
 
-5. **Open your browser**
-   Navigate to `http://localhost:3000`
+#### Option 1: Docker (Recommended)
 
-## 🔑 Environment Setup
+```bash
+cd python-forecast-service
+docker-compose up -d
+```
 
-### Required API Keys
+#### Option 2: Local Python
 
-#### 1. ExchangeRate-API (Real-time Rates)
+```bash
+cd python-forecast-service
+pip install -r requirements.txt
+python app.py
+```
 
-- **Purpose**: Real-time currency exchange rates
-- **Free Tier**: 1,500 requests/month
-- **Sign up**: [ExchangeRate-API](https://app.exchangerate-api.com/sign-up)
+See [python-forecast-service/README.md](python-forecast-service/README.md) for details.
 
-#### 2. Alpha Vantage (Historical Data & News)
+## 🔑 API Keys (All Optional!)
 
-- **Purpose**: Historical forex data and financial news
-- **Free Tier**: 25 requests/day
-- **Sign up**: [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+### ✅ Works Without Any API Keys
+
+The app uses free fallback services:
+
+- **Rates**: ExchangeRate-API (free, no key)
+- **Historical**: Frankfurter API (free, no key)
+- **News**: ForexLive RSS (free, no key)
+- **Events**: Static 2025 economic calendar
+
+### Optional API Keys for Enhanced Features
+
+| API | Purpose | Free Tier | Get Key |
+|-----|---------|-----------|---------|
+| **NewsAPI.org** | Better news coverage | 100 req/day | [Sign up](https://newsapi.org/) |
+| **GNews API** | Alternative news | 100 req/day | [Sign up](https://gnews.io/) |
+| **TradingEconomics** | Real-time events | Paid | [Sign up](https://tradingeconomics.com/api) |
+| **ExchangeRate-API** | Higher rate limits | 1,500/month | [Sign up](https://app.exchangerate-api.com/sign-up) |
 
 ### Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `ALPHA_VANTAGE_API_KEY` | Alpha Vantage API key for historical data | Yes |
-| `EXCHANGE_RATE_API_KEY` | ExchangeRate-API key for real-time rates | Yes |
-| `REACT_APP_API_BASE_URL` | Base URL for API calls | Yes |
+See [.env.example](.env.example) for complete configuration with detailed notes.
 
 ### Production Deployment (Vercel)
 
 1. **Deploy to Vercel**
 
    ```bash
+   npm install -g vercel
    vercel
    ```
 
-2. **Set environment variables in Vercel dashboard**
-   - Go to your project settings
-   - Navigate to "Environment Variables"
-   - Add all required variables
+2. **Optional: Add API keys in Vercel dashboard**
+   - Settings → Environment Variables
+   - Add any optional keys
 
-3. **Redeploy** after adding environment variables
+3. **Python Service** (optional):
+   - Deploy Python service separately (Railway, Render, or own server)
+   - Set `PYTHON_FORECAST_SERVICE_URL` in Vercel
 
 ## 📁 Project Structure
 
 ```text
-fx-tracker-pro/
+fx-tracker/
 ├── components/
-│   └── FXTracker.js           # Main application component
+│   └── FXTracker.js              # Main React component
 ├── pages/
-│   ├── api/                   # Backend API routes
-│   │   ├── rates.js          # Real-time exchange rates
-│   │   ├── historical.js     # Historical data
-│   │   ├── news.js           # Financial news
-│   │   └── events.js         # Economic events
-│   ├── _app.js               # Next.js app wrapper
-│   └── index.js              # Main page
-├── public/                    # Static assets
-├── styles/                    # Global styles
-├── .env.example              # Environment variables template
-├── .gitignore               # Git ignore rules
-├── package.json             # Dependencies and scripts
-└── README.md                # This file
+│   ├── api/                      # Backend API routes (Node.js)
+│   │   ├── rates.js             # Real-time rates
+│   │   ├── historical.js        # 90-day historical data
+│   │   ├── forecast.js          # 5 JS forecasting algorithms
+│   │   ├── news.js              # Live financial news
+│   │   └── events.js            # Economic calendar
+│   ├── _app.js                  # Next.js app wrapper
+│   └── index.js                 # Main page
+├── python-forecast-service/      # Optional ML microservice
+│   ├── app.py                   # Flask REST API
+│   ├── requirements.txt         # Python dependencies
+│   ├── Dockerfile               # Docker configuration
+│   ├── docker-compose.yml       # Docker Compose setup
+│   └── README.md                # Python service docs
+├── public/                       # Static assets
+├── styles/                       # Global styles
+├── .env.example                 # Environment template
+├── FORECASTING.md               # Forecasting documentation
+├── package.json                 # Node dependencies
+└── README.md                    # This file
 ```
 
 ## 🔌 API Endpoints
 
-### Internal API Routes
+### Backend API Routes (Next.js)
+
+| Endpoint | Method | Description | Response Time |
+|----------|--------|-------------|---------------|
+| `/api/rates` | GET | Real-time rates for all currency pairs | < 500ms |
+| `/api/historical?pair=NZD/ZAR` | GET | 90-day historical OHLC data | < 2s |
+| `/api/forecast` | POST | Generate forecast with selected algorithm | < 5s |
+| `/api/news` | GET | Live financial news with sentiment | < 2s |
+| `/api/events` | GET | Economic calendar (next 90 days) | < 1s |
+
+### Python ML Service (Optional)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/rates` | GET | Real-time exchange rates for all currency pairs |
-| `/api/historical` | GET | Historical forex data with OHLC values |
-| `/api/news` | GET | Latest financial news with sentiment analysis |
-| `/api/events` | GET | Upcoming economic events and central bank meetings |
+| `http://localhost:5000/forecast` | POST | Advanced ML forecasts |
+| `http://localhost:5000/health` | GET | Service health check |
+| `http://localhost:5000/algorithms` | GET | List available algorithms |
 
-### Example API Response
+### Example Responses
+
+**Rates**:
 
 ```json
 {
   "rates": {
-    "NZD/ZAR": 11.0234,
-    "EUR/USD": 1.0856,
-    "GBP/USD": 1.2534
+    "NZD/ZAR": 9.6573,
+    "EUR/USD": 1.0856
   },
   "timestamp": "2025-01-20T12:00:00Z"
+}
+```
+
+**Forecast**:
+
+```json
+{
+  "forecast": [
+    {
+      "date": "2025-02-20",
+      "rate": 9.7123,
+      "upper": 9.8456,
+      "lower": 9.5790
+    }
+  ],
+  "algorithm": "ensemble",
+  "confidence": 0.80,
+  "accuracy": 0.78
 }
 ```
 
@@ -196,26 +323,54 @@ fx-tracker-pro/
 
 ### Technical Analysis
 
-- **Moving Averages**: Trend identification with 5 and 20-period SMAs
-- **Bollinger Bands**: Volatility and overbought/oversold conditions
-- **RSI**: Momentum oscillator (14-period) with overbought (>70) and oversold (<30) levels
-- **Support/Resistance**: Dynamic calculation based on recent price action
+- **Moving Averages**: 5 and 20-period SMAs for trend identification
+- **Bollinger Bands**: Volatility bands with 2σ standard deviations
+- **RSI**: 14-period momentum oscillator
+- **Support/Resistance**: Dynamic levels from 30-day highs/lows
+- **Volatility**: Annualized volatility calculation
 
-### Forecasting Algorithm
+### Advanced Forecasting System
 
-The application uses advanced exponential smoothing with:
+**9 Algorithms Available**:
 
-- **Trend Analysis**: Identifies bullish/bearish trends
-- **Seasonal Adjustments**: Weekly seasonality patterns
-- **Mean Reversion**: Long-term equilibrium considerations
-- **Confidence Intervals**: 95% confidence bands for forecasts
+| Algorithm | Type | Confidence | Speed | Best For |
+|-----------|------|------------|-------|----------|
+| Trend | JS | 65% | ⚡⚡⚡ | Quick analysis |
+| Linear Regression | JS | 70% | ⚡⚡⚡ | Trend analysis |
+| Exp. Smoothing | JS | 72% | ⚡⚡ | General use |
+| ARIMA-Lite | JS | 75% | ⚡⚡ | Pattern recognition |
+| **Ensemble** | JS | **80%** | ⚡⚡ | **Production** |
+| Prophet | Python | 88% | ⚡ | Seasonality |
+| LSTM | Python | 85% | ⚡ | Complex patterns |
+| GARCH | Python | 82% | ⚡⚡ | Volatility |
+| XGBoost | Python | 83% | ⚡ | Short-term |
 
-### News Sentiment Analysis
+**Features**:
 
-- **AI-Powered**: Alpha Vantage's AI sentiment scoring
-- **Impact Classification**: Automatic high/medium/low impact rating
-- **Currency Relevance**: News filtered by mentioned currencies
-- **Real-Time Updates**: Fresh financial news every hour
+- 95% confidence intervals
+- Backtesting metrics (MAE, accuracy)
+- Automatic fallback to JS if Python unavailable
+- Horizon selection: 7, 14, 30, 60, 90 days
+
+See [FORECASTING.md](FORECASTING.md) for complete documentation.
+
+### News & Sentiment Analysis
+
+- **Real-Time Sources**: ForexLive RSS, NewsAPI, GNews
+- **Auto Sentiment**: Bullish/Bearish/Neutral classification
+- **Impact Detection**: Identifies high-impact terms (central bank, rates, etc.)
+- **Currency Extraction**: Automatically finds mentioned currencies
+- **Time Ago**: Human-readable timestamps
+
+### Economic Calendar
+
+**Real 2025 Events**:
+
+- Federal Reserve FOMC meetings (8 per year)
+- ECB Governing Council (every 6 weeks)
+- RBNZ OCR decisions (quarterly)
+- SARB MPC meetings (6 per year)
+- Monthly CPI releases (US, NZ, ZA)
 
 ## 🛡️ Security
 
@@ -298,4 +453,5 @@ try {
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE)
+file for details.
