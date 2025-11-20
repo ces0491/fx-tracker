@@ -674,12 +674,6 @@ const FXTracker = () => {
               x={lastHistoricalDate}
               stroke="#9333ea"
               strokeWidth={2}
-              strokeDasharray="5 5"
-              label={{
-                value: "Forecast Start",
-                position: "top",
-                style: { fontSize: 12, fontWeight: 'bold', fill: '#9333ea' }
-              }}
             />
           )}
 
@@ -1135,7 +1129,7 @@ const FXTracker = () => {
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-medium text-gray-900 flex items-center">
                         <BarChart3 className="h-4 w-4 mr-2" />
-                        Historical Price Analysis
+                        Price Analysis
                       </h3>
 
                       {/* Date Range Selection & Fullscreen Button */}
@@ -1185,6 +1179,51 @@ const FXTracker = () => {
 
                     <div style={{ height: isChartFullscreen ? 'calc(100vh - 120px)' : CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
                       <HistoricalPriceChart data={prepareCombinedChartData()} />
+                    </div>
+
+                    {/* Technical Indicators */}
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700">Indicators:</span>
+                      <button
+                        onClick={() => setIndicators(prev => ({ ...prev, sma5: !prev.sma5 }))}
+                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                          indicators.sma5
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        5-Day SMA
+                      </button>
+                      <button
+                        onClick={() => setIndicators(prev => ({ ...prev, sma20: !prev.sma20 }))}
+                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                          indicators.sma20
+                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        20-Day SMA
+                      </button>
+                      <button
+                        onClick={() => setIndicators(prev => ({ ...prev, bollinger: !prev.bollinger }))}
+                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                          indicators.bollinger
+                            ? 'bg-orange-600 text-white hover:bg-orange-700'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        Bollinger Bands
+                      </button>
+                      <button
+                        onClick={() => setIndicators(prev => ({ ...prev, rsi: !prev.rsi }))}
+                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                          indicators.rsi
+                            ? 'bg-purple-600 text-white hover:bg-purple-700'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        RSI
+                      </button>
                     </div>
                   </div>
 
