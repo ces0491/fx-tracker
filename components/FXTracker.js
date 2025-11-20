@@ -1147,7 +1147,7 @@ const FXTracker = () => {
                             value={dateRange.start}
                             onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
                             max={dateRange.end}
-                            className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 font-medium"
                           />
                         </div>
                         <div className="flex items-center gap-2">
@@ -1158,7 +1158,7 @@ const FXTracker = () => {
                             onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
                             min={dateRange.start}
                             max={new Date().toISOString().split('T')[0]}
-                            className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 font-medium"
                           />
                         </div>
                         <button
@@ -1246,7 +1246,7 @@ const FXTracker = () => {
                           <select
                             value={forecastDays}
                             onChange={(e) => setForecastDays(Number(e.target.value))}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 font-medium"
                           >
                             <option value={7}>7 Days</option>
                             <option value={14}>14 Days</option>
@@ -1491,9 +1491,12 @@ const FXTracker = () => {
               {news.length > 0 ? (
                 <div className="space-y-4">
                   {news.map(item => (
-                    <article 
-                      key={item.id} 
-                      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    <a
+                      key={item.id}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-colors cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <span className={`px-2 py-1 text-xs rounded-full ${
@@ -1505,15 +1508,15 @@ const FXTracker = () => {
                         </span>
                         <time className="text-xs text-gray-500">{item.time}</time>
                       </div>
-                      
-                      <h3 className="font-medium text-gray-900 mb-2">
+
+                      <h3 className="font-medium text-gray-900 mb-2 hover:text-blue-600">
                         {item.title}
                       </h3>
-                      
+
                       <p className="text-sm text-gray-600 mb-2">
                         {item.summary}
                       </p>
-                      
+
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">{item.source}</span>
                         <div className="flex space-x-1">
@@ -1524,7 +1527,7 @@ const FXTracker = () => {
                           ))}
                         </div>
                       </div>
-                    </article>
+                    </a>
                   ))}
                 </div>
               ) : (
@@ -1538,15 +1541,6 @@ const FXTracker = () => {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-white border-t mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center text-sm text-gray-500">
-            <p>Professional FX Tracker • Live API Data</p>
-            <p className="mt-1">For educational purposes • Not financial advice</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
