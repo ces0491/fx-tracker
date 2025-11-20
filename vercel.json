@@ -1,11 +1,4 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
   "env": {
     "NEWS_API_KEY": "@news-api-key",
     "GNEWS_API_KEY": "@gnews-api-key",
@@ -14,7 +7,7 @@
     "PYTHON_FORECAST_SERVICE_URL": "@python-forecast-service-url"
   },
   "functions": {
-    "pages/api/**/*.js": {
+    "app/api/**/*.js": {
       "maxDuration": 30
     }
   }
