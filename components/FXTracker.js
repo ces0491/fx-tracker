@@ -288,7 +288,7 @@ const FXTracker = () => {
       setLoadingState(prev => ({ ...prev, historical: 'error' }));
       setErrors(prev => ({ ...prev, historical: `Failed to fetch historical data: ${error.message}` }));
     }
-  }, [forecastDays]);
+  }, [forecastDays, forecastAlgorithm, generateForecast, calculateIndicators]);
 
   // Generate forecast using selected algorithm
   const generateForecast = useCallback(async (historicalData, days, algorithm) => {
