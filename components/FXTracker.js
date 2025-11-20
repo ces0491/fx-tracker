@@ -1271,10 +1271,14 @@ const FXTracker = () => {
 
                       {/* Algorithm Info */}
                       {forecast && forecast[selectedPair] && (
-                        <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="grid grid-cols-4 gap-2 text-sm">
                           <div className="bg-white p-2 rounded">
                             <span className="text-gray-700 font-medium">Algorithm:</span>
                             <span className="font-semibold ml-1 text-gray-900">{forecast[selectedPair].algorithm}</span>
+                          </div>
+                          <div className="bg-white p-2 rounded">
+                            <span className="text-gray-700 font-medium">Training Data:</span>
+                            <span className="font-semibold ml-1 text-gray-900">{historicalData[selectedPair]?.length || 0} days</span>
                           </div>
                           <div className="bg-white p-2 rounded">
                             <span className="text-gray-700 font-medium">Confidence:</span>
