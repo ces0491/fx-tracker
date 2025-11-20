@@ -39,7 +39,8 @@ const FXTracker = () => {
     sma5: true,
     sma20: true,
     bollinger: false,
-    rsi: false
+    rsi: false,
+    supportResistance: true
   });
 
   // Manual currency input state
@@ -235,11 +236,24 @@ const FXTracker = () => {
       }
 
       const finalData = calculateIndicators(data.historicalData);
-      
+
       setHistoricalData(prev => ({
         ...prev,
         [pair]: finalData
       }));
+
+      // Update date range to reflect available data (default to last 30 days)
+      if (finalData.length > 0) {
+        const lastDate = finalData[finalData.length - 1].date;
+        const firstDate = finalData[0].date;
+        const thirtyDaysAgo = new Date(new Date(lastDate).getTime() - 30 * 24 * 60 * 60 * 1000);
+        const defaultStart = thirtyDaysAgo < new Date(firstDate) ? firstDate : thirtyDaysAgo.toISOString().split('T')[0];
+
+        setDateRange({
+          start: defaultStart,
+          end: lastDate
+        });
+      }
       
       // Generate forecast based on selected algorithm
       const forecastResult = await generateForecast(finalData, forecastDays, forecastAlgorithm);
@@ -677,7 +691,7 @@ const FXTracker = () => {
             />
           )}
 
-          {forecast && forecast[selectedPair] && forecast[selectedPair].support && (
+          {indicators.supportResistance && forecast && forecast[selectedPair] && forecast[selectedPair].support && (
             <ReferenceLine
               y={forecast[selectedPair].support}
               stroke="#dc2626"
@@ -686,7 +700,7 @@ const FXTracker = () => {
               label={{ value: "Support", position: "insideTopLeft", style: { fontWeight: 'bold', fill: '#dc2626' } }}
             />
           )}
-          {forecast && forecast[selectedPair] && forecast[selectedPair].resistance && (
+          {indicators.supportResistance && forecast && forecast[selectedPair] && forecast[selectedPair].resistance && (
             <ReferenceLine
               y={forecast[selectedPair].resistance}
               stroke="#059669"
@@ -699,6 +713,35 @@ const FXTracker = () => {
       </ResponsiveContainer>
     );
   }, [indicators, formatDateForChart, formatRate, forecast, selectedPair, calculateChartDomain, showForecast]);
+
+  // Quick date range selection
+  const setQuickDateRange = useCallback((months) => {
+    if (!historicalData[selectedPair] || historicalData[selectedPair].length === 0) return;
+
+    const lastDate = historicalData[selectedPair][historicalData[selectedPair].length - 1].date;
+    const firstDate = historicalData[selectedPair][0].date;
+    const endDate = new Date(lastDate);
+
+    let startDate;
+    if (months === 'ytd') {
+      // Year to date - from Jan 1 of the end date's year
+      startDate = new Date(endDate.getFullYear(), 0, 1);
+    } else {
+      // Calculate months back from end date
+      startDate = new Date(endDate.getTime() - months * 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // Clamp to available data range
+    const firstAvailable = new Date(firstDate);
+    if (startDate < firstAvailable) {
+      startDate = firstAvailable;
+    }
+
+    setDateRange({
+      start: startDate.toISOString().split('T')[0],
+      end: lastDate
+    });
+  }, [historicalData, selectedPair]);
 
   // Data preparation
   const prepareCombinedChartData = useCallback(() => {
@@ -1148,6 +1191,9 @@ const FXTracker = () => {
                             type="date"
                             value={dateRange.start}
                             onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                            min={historicalData[selectedPair] && historicalData[selectedPair].length > 0
+                              ? historicalData[selectedPair][0].date
+                              : undefined}
                             max={dateRange.end}
                             className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 font-medium"
                           />
@@ -1159,18 +1205,12 @@ const FXTracker = () => {
                             value={dateRange.end}
                             onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
                             min={dateRange.start}
-                            max={new Date().toISOString().split('T')[0]}
+                            max={historicalData[selectedPair] && historicalData[selectedPair].length > 0
+                              ? historicalData[selectedPair][historicalData[selectedPair].length - 1].date
+                              : new Date().toISOString().split('T')[0]}
                             className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 font-medium"
                           />
                         </div>
-                        <button
-                          onClick={() => fetchHistoricalData(selectedPair)}
-                          disabled={loadingState.historical === 'loading'}
-                          className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm flex items-center"
-                        >
-                          <RefreshCw className={`h-3 w-3 mr-1 ${loadingState.historical === 'loading' ? 'animate-spin' : ''}`} />
-                          Apply
-                        </button>
                         <button
                           onClick={() => setIsChartFullscreen(!isChartFullscreen)}
                           className="px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm flex items-center"
@@ -1183,6 +1223,41 @@ const FXTracker = () => {
                           )}
                         </button>
                       </div>
+                    </div>
+
+                    {/* Quick Date Range Buttons */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-sm font-medium text-gray-700">Quick Select:</span>
+                      <button
+                        onClick={() => setQuickDateRange(1)}
+                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        1M
+                      </button>
+                      <button
+                        onClick={() => setQuickDateRange(3)}
+                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        3M
+                      </button>
+                      <button
+                        onClick={() => setQuickDateRange(6)}
+                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        6M
+                      </button>
+                      <button
+                        onClick={() => setQuickDateRange(12)}
+                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        12M
+                      </button>
+                      <button
+                        onClick={() => setQuickDateRange('ytd')}
+                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                      >
+                        YTD
+                      </button>
                     </div>
 
                     <div style={{ height: isChartFullscreen ? 'calc(100vh - 120px)' : CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
@@ -1231,6 +1306,16 @@ const FXTracker = () => {
                         }`}
                       >
                         RSI
+                      </button>
+                      <button
+                        onClick={() => setIndicators(prev => ({ ...prev, supportResistance: !prev.supportResistance }))}
+                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                          indicators.supportResistance
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        Support/Resistance
                       </button>
                     </div>
                   </div>
@@ -1348,7 +1433,7 @@ const FXTracker = () => {
                       </h3>
                       <div style={{ height: CONFIG.CHART_HEIGHT.rsi, minHeight: CONFIG.CHART_HEIGHT.rsi }}>
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={historicalData[selectedPair]}>
+                          <LineChart data={prepareCombinedChartData().filter(item => item.type === 'historical')}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                             <XAxis 
                               dataKey="date" 

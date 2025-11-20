@@ -21,7 +21,7 @@ analysis, technical indicators, and live market news.
 
 ### 📊 Analytics & Charting
 
-- **90-Day Historical Data**: Real historical forex data via Frankfurter API
+- **1-Year Historical Data**: Real historical forex data (365 days) via Frankfurter API
 - **Technical Indicators**:
   - Simple Moving Averages (5-day, 20-day)
   - Bollinger Bands

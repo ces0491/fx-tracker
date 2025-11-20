@@ -17,9 +17,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid currency pair format. Use BASE/QUOTE (e.g., NZD/ZAR)' });
     }
 
-    // Calculate date range (90 days)
+    // Calculate date range (365 days - 1 year)
     const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const startDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
 
     // Try multiple free APIs in order
     const apis = [
