@@ -269,11 +269,17 @@ const FXTracker = () => {
       const resistance = Math.max(...highs);
       const support = Math.min(...lows);
 
-      const returns = finalData.slice(-30).map((d, i, arr) =>
-        i > 0 ? Math.log(d.close / arr[i-1].close) : 0
-      ).slice(1);
-      const variance = returns.reduce((sum, r) => sum + r * r, 0) / returns.length;
-      const volatility = Math.sqrt(variance * 252);
+      // Use Kalman filter's adaptive volatility when available, otherwise fixed-window
+      let volatility;
+      if (forecastAlgorithm === 'kalman' && forecastResult.latestVolatility) {
+        volatility = forecastResult.latestVolatility;
+      } else {
+        const returns = finalData.slice(-30).map((d, i, arr) =>
+          i > 0 ? Math.log(d.close / arr[i-1].close) : 0
+        ).slice(1);
+        const variance = returns.reduce((sum, r) => sum + r * r, 0) / returns.length;
+        volatility = Math.sqrt(variance * 252);
+      }
 
       setForecast(prev => ({
         ...prev,
@@ -334,7 +340,8 @@ const FXTracker = () => {
         algorithm: data.algorithm,
         confidence: data.confidence,
         accuracy: data.metadata.accuracy,
-        mae: data.metadata.mae
+        mae: data.metadata.mae,
+        latestVolatility: data.metadata.latestVolatility
       };
 
     } catch (error) {
@@ -1355,6 +1362,7 @@ const FXTracker = () => {
                               <option value="linear_regression">Linear Regression</option>
                               <option value="exponential_smoothing">Exponential Smoothing</option>
                               <option value="arima_lite">ARIMA-Lite</option>
+                              <option value="kalman">Kalman Filter</option>
                               <option value="ensemble">Ensemble (Recommended)</option>
                             </optgroup>
                             <optgroup label="Python ML Algorithms (Advanced)">
@@ -1365,7 +1373,9 @@ const FXTracker = () => {
                             </optgroup>
                           </select>
                           <p className="text-xs text-gray-500 mt-1">
-                            {forecastAlgorithm.includes('lstm') || forecastAlgorithm.includes('prophet') || forecastAlgorithm.includes('garch') || forecastAlgorithm.includes('xgboost') ?
+                            {forecastAlgorithm === 'kalman' ?
+                              '📊 Adaptive volatility estimation' :
+                              forecastAlgorithm.includes('lstm') || forecastAlgorithm.includes('prophet') || forecastAlgorithm.includes('garch') || forecastAlgorithm.includes('xgboost') ?
                               '⚡ Requires Python service' : '🚀 Fast JavaScript'}
                           </p>
                         </div>

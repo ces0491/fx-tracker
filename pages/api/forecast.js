@@ -4,7 +4,8 @@ import {
   linearRegressionForecast,
   exponentialSmoothingForecast,
   arimaLiteForecast,
-  ensembleForecast
+  ensembleForecast,
+  kalmanFilterForecast
 } from '../../lib/forecasting/algorithms.js';
 
 export default async function handler(req, res) {
@@ -47,6 +48,10 @@ export default async function handler(req, res) {
         forecastResult = ensembleForecast(prices, lastDate, forecastDays);
         break;
 
+      case 'kalman':
+        forecastResult = kalmanFilterForecast(prices, lastDate, forecastDays);
+        break;
+
       // Advanced algorithms - call Python microservice
       case 'lstm':
       case 'prophet':
@@ -67,7 +72,8 @@ export default async function handler(req, res) {
         trainingPoints: prices.length,
         forecastHorizon: forecastDays,
         accuracy: forecastResult.accuracy,
-        mae: forecastResult.mae
+        mae: forecastResult.mae,
+        ...(forecastResult.latestVolatility && { latestVolatility: forecastResult.latestVolatility })
       }
     });
 
