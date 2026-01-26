@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Newspaper, BarChart3, Globe, Calendar, AlertCircle, Activity, Target, Shield, Edit3, Check, X, Wifi, WifiOff, Clock, AlertTriangle, Maximize, Minimize } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Newspaper, BarChart3, Globe, Calendar, AlertCircle, Activity, Target, Shield, Edit3, Check, X, Wifi, WifiOff, Clock, AlertTriangle, Maximize, Minimize, HelpCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
 
 const FXTracker = () => {
@@ -48,6 +48,9 @@ const FXTracker = () => {
   const [manualBaseCurrency, setManualBaseCurrency] = useState('');
   const [manualQuoteCurrency, setManualQuoteCurrency] = useState('');
   const [customCurrencyError, setCustomCurrencyError] = useState('');
+
+  // Help modal state
+  const [showHelp, setShowHelp] = useState(false);
 
   // Configuration constants
   const CONFIG = useMemo(() => ({
@@ -1331,10 +1334,19 @@ const FXTracker = () => {
                   {historicalData[selectedPair] && (
                     <div className="mt-6 bg-purple-50 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                          <Target className="h-5 w-5 mr-2" />
-                          Price Forecast Settings
-                        </h3>
+                        <div className="flex items-center">
+                          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                            <Target className="h-5 w-5 mr-2" />
+                            Price Forecast Settings
+                          </h3>
+                          <button
+                            onClick={() => setShowHelp(true)}
+                            className="ml-2 p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-100 rounded-full transition-colors"
+                            title="Help"
+                          >
+                            <HelpCircle className="h-5 w-5" />
+                          </button>
+                        </div>
                         <label className="flex items-center cursor-pointer">
                           <input
                             type="checkbox"
@@ -1357,27 +1369,13 @@ const FXTracker = () => {
                             onChange={(e) => setForecastAlgorithm(e.target.value)}
                             className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 font-medium"
                           >
-                            <optgroup label="JavaScript Algorithms (Fast)">
-                              <option value="trend">Trend-Based</option>
-                              <option value="linear_regression">Linear Regression</option>
-                              <option value="exponential_smoothing">Exponential Smoothing</option>
-                              <option value="arima_lite">ARIMA-Lite</option>
-                              <option value="kalman">Kalman Filter</option>
-                              <option value="ensemble">Ensemble (Recommended)</option>
-                            </optgroup>
-                            <optgroup label="Python ML Algorithms (Advanced)">
-                              <option value="prophet">Facebook Prophet</option>
-                              <option value="lstm">LSTM Neural Network</option>
-                              <option value="garch">GARCH Volatility</option>
-                              <option value="xgboost">XGBoost</option>
-                            </optgroup>
+                            <option value="trend">Trend-Based</option>
+                            <option value="linear_regression">Linear Regression</option>
+                            <option value="exponential_smoothing">Exponential Smoothing</option>
+                            <option value="arima_lite">ARIMA-Lite</option>
+                            <option value="kalman">Kalman Filter</option>
+                            <option value="ensemble">Ensemble (Recommended)</option>
                           </select>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {forecastAlgorithm === 'kalman' ?
-                              '📊 Adaptive volatility estimation' :
-                              forecastAlgorithm.includes('lstm') || forecastAlgorithm.includes('prophet') || forecastAlgorithm.includes('garch') || forecastAlgorithm.includes('xgboost') ?
-                              '⚡ Requires Python service' : '🚀 Fast JavaScript'}
-                          </p>
                         </div>
 
                         {/* Forecast Days */}
@@ -1682,6 +1680,151 @@ const FXTracker = () => {
           </div>
         </div>
       </div>
+
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                <HelpCircle className="h-6 w-6 mr-2 text-purple-600" />
+                Help & Guide
+              </h2>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 space-y-6">
+              {/* About the App */}
+              <section>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">About This App</h3>
+                <p className="text-gray-600">
+                  FX Tracker helps you monitor foreign exchange rates and forecast future price movements.
+                  It fetches real historical data, calculates technical indicators, and uses various
+                  algorithms to generate price forecasts with confidence intervals.
+                </p>
+                <p className="text-gray-600 mt-2">
+                  <strong>Important:</strong> Forecasts are statistical estimates, not guarantees.
+                  Exchange rates are influenced by countless factors and can move unexpectedly.
+                  Always consider the confidence intervals shown around forecast lines.
+                </p>
+              </section>
+
+              {/* Forecasting Algorithms */}
+              <section>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Forecasting Algorithms</h3>
+                <div className="space-y-4">
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900">Trend-Based</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Looks at recent price momentum (short and medium-term trends) and projects it forward.
+                      Simple and intuitive - if prices have been rising, it expects that to continue,
+                      but with diminishing strength over time.
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900">Linear Regression</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Fits a straight line through historical prices using least-squares math.
+                      Good for identifying the overall direction when prices follow a steady trend.
+                      Works best when there is a clear upward or downward pattern.
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900">Exponential Smoothing</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Gives more weight to recent prices and less to older ones.
+                      Adapts quickly to recent changes while filtering out noise.
+                      A good balance between responsiveness and stability.
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900">ARIMA-Lite</h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      A simplified autoregressive model that predicts future values based on
+                      past values and their patterns. Captures how today relates to
+                      yesterday, and so on. Good for mean-reverting behavior.
+                    </p>
+                  </div>
+
+                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                    <h4 className="font-medium text-purple-900">Kalman Filter</h4>
+                    <p className="text-sm text-purple-800 mt-1">
+                      An adaptive algorithm that tracks three hidden states: the underlying price,
+                      its trend, and market volatility. Updates its estimates as new data arrives
+                      and provides mathematically-grounded confidence intervals.
+                      Particularly good at adapting to changing market conditions.
+                    </p>
+                  </div>
+
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <h4 className="font-medium text-green-900">Ensemble (Recommended)</h4>
+                    <p className="text-sm text-green-800 mt-1">
+                      Combines multiple algorithms and weights them by their historical accuracy.
+                      By blending different approaches, it tends to be more robust than any single
+                      method alone. A good default choice when unsure which algorithm to use.
+                    </p>
+                  </div>
+
+                </div>
+              </section>
+
+              {/* Technical Indicators */}
+              <section>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Technical Indicators</h3>
+                <div className="space-y-3 text-sm">
+                  <p className="text-gray-600">
+                    <strong>SMA (Moving Averages):</strong> Smoothed price lines. The 5-day SMA
+                    shows short-term direction; the 20-day shows medium-term. When short crosses
+                    above long, it may signal upward momentum (and vice versa).
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>Bollinger Bands:</strong> Price channels based on volatility. When prices
+                    touch the upper band, they may be overextended; touching the lower band may
+                    indicate oversold conditions.
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>RSI:</strong> Momentum oscillator (0-100). Above 70 suggests overbought
+                    conditions; below 30 suggests oversold. Helps identify potential reversal points.
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>Support/Resistance:</strong> Recent price floors and ceilings. Prices
+                    often bounce off these levels, making them useful reference points.
+                  </p>
+                </div>
+              </section>
+
+              {/* Tips */}
+              <section>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Tips</h3>
+                <ul className="text-sm text-gray-600 space-y-2">
+                  <li>• Shorter forecast horizons (7-14 days) are generally more reliable than longer ones</li>
+                  <li>• Wide confidence bands indicate high uncertainty - be cautious</li>
+                  <li>• Check economic news and events that might impact your currency pair</li>
+                  <li>• Use multiple indicators together rather than relying on just one signal</li>
+                </ul>
+              </section>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4">
+              <button
+                onClick={() => setShowHelp(false)}
+                className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
