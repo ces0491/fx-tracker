@@ -628,6 +628,32 @@ const FXTracker = () => {
             name="Close Price"
           />
 
+          {/* Forecast confidence bands */}
+          {showForecast && (
+            <>
+              <Line
+                type="monotone"
+                dataKey="upper"
+                stroke="#a78bfa"
+                strokeWidth={1.5}
+                strokeDasharray="4 2"
+                dot={false}
+                connectNulls={false}
+                name="Upper Bound"
+              />
+              <Line
+                type="monotone"
+                dataKey="lower"
+                stroke="#a78bfa"
+                strokeWidth={1.5}
+                strokeDasharray="4 2"
+                dot={false}
+                connectNulls={false}
+                name="Lower Bound"
+              />
+            </>
+          )}
+
           {/* Forecast price line - dashed */}
           {showForecast && (
             <Line
@@ -1777,27 +1803,69 @@ const FXTracker = () => {
                 </div>
               </section>
 
+              {/* Key Metrics */}
+              <section>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Key Metrics Explained</h3>
+                <div className="space-y-3 text-sm">
+                  <p className="text-gray-600">
+                    <strong>Confidence:</strong> A percentage indicating how reliable the forecast model
+                    considers its predictions. Higher confidence means the model fits historical data well,
+                    but does not guarantee future accuracy. Typically ranges from 65-85%.
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>Accuracy:</strong> Measures how close past predictions were to actual values.
+                    Calculated from one-step-ahead prediction errors. Higher is better, but even 80%
+                    accuracy means 1 in 5 predictions may be off significantly.
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>MAE (Mean Absolute Error):</strong> The average size of prediction errors
+                    in the same units as the exchange rate. A MAE of 0.05 means predictions are off
+                    by 0.05 on average. Lower is better.
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>Volatility:</strong> How much the exchange rate fluctuates, shown as an
+                    annualized percentage. 10% volatility means the rate typically moves within a 10%
+                    range over a year. Higher volatility = higher risk and uncertainty.
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>Confidence Bands:</strong> The shaded area around forecasts showing the
+                    range of likely outcomes. Wider bands mean more uncertainty. If bands are very
+                    wide, treat the point forecast with caution.
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>Trend (Bullish/Bearish):</strong> Recent price direction. Bullish means
+                    prices have been rising; bearish means falling. Strength (strong/moderate/weak)
+                    indicates how pronounced the trend is.
+                  </p>
+                </div>
+              </section>
+
               {/* Technical Indicators */}
               <section>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Technical Indicators</h3>
                 <div className="space-y-3 text-sm">
                   <p className="text-gray-600">
-                    <strong>SMA (Moving Averages):</strong> Smoothed price lines. The 5-day SMA
-                    shows short-term direction; the 20-day shows medium-term. When short crosses
-                    above long, it may signal upward momentum (and vice versa).
+                    <strong>SMA (Simple Moving Average):</strong> Smoothed price lines that filter out
+                    daily noise. The 5-day SMA shows short-term direction; the 20-day shows medium-term.
+                    When the short-term crosses above the long-term, it may signal upward momentum.
                   </p>
                   <p className="text-gray-600">
-                    <strong>Bollinger Bands:</strong> Price channels based on volatility. When prices
-                    touch the upper band, they may be overextended; touching the lower band may
-                    indicate oversold conditions.
+                    <strong>Bollinger Bands:</strong> Price channels set 2 standard deviations above
+                    and below a moving average. When prices touch the upper band, they may be
+                    overextended; touching the lower band may indicate oversold conditions.
                   </p>
                   <p className="text-gray-600">
-                    <strong>RSI:</strong> Momentum oscillator (0-100). Above 70 suggests overbought
-                    conditions; below 30 suggests oversold. Helps identify potential reversal points.
+                    <strong>RSI (Relative Strength Index):</strong> A momentum oscillator ranging 0-100.
+                    Above 70 suggests overbought conditions (price may fall); below 30 suggests oversold
+                    (price may rise). Around 50 is neutral.
                   </p>
                   <p className="text-gray-600">
-                    <strong>Support/Resistance:</strong> Recent price floors and ceilings. Prices
-                    often bounce off these levels, making them useful reference points.
+                    <strong>Support:</strong> A price floor where the rate has historically stopped falling
+                    and bounced back up. Useful as a potential buying level or stop-loss reference.
+                  </p>
+                  <p className="text-gray-600">
+                    <strong>Resistance:</strong> A price ceiling where the rate has historically stopped
+                    rising and pulled back down. Useful as a potential selling level or profit target.
                   </p>
                 </div>
               </section>
@@ -1808,8 +1876,10 @@ const FXTracker = () => {
                 <ul className="text-sm text-gray-600 space-y-2">
                   <li>• Shorter forecast horizons (7-14 days) are generally more reliable than longer ones</li>
                   <li>• Wide confidence bands indicate high uncertainty - be cautious</li>
+                  <li>• High volatility periods make forecasting less reliable</li>
                   <li>• Check economic news and events that might impact your currency pair</li>
                   <li>• Use multiple indicators together rather than relying on just one signal</li>
+                  <li>• The Kalman Filter adapts its volatility estimate - useful in changing markets</li>
                 </ul>
               </section>
             </div>
