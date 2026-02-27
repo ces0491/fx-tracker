@@ -12,6 +12,7 @@ const FXTracker = () => {
   const [quoteCurrency, setQuoteCurrency] = useState('ZAR');
   const [forecast, setForecast] = useState(null);
   const [news, setNews] = useState([]);
+  const [newsEnhanced, setNewsEnhanced] = useState(false);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   
   // Loading and error states
@@ -458,6 +459,7 @@ const FXTracker = () => {
       const data = await response.json();
 
       setNews(data.news || []);
+      setNewsEnhanced(data.enhanced || false);
       setLoadingState(prev => ({ ...prev, news: 'success' }));
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -1652,8 +1654,13 @@ const FXTracker = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Newspaper className="h-5 w-5 mr-2" />
                 Market News
+                {newsEnhanced && (
+                  <span className="ml-2 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full font-medium">
+                    AI Enhanced
+                  </span>
+                )}
               </h2>
-              
+
               {news.length > 0 ? (
                 <div className="space-y-4">
                   {news.map(item => (
@@ -1665,13 +1672,22 @@ const FXTracker = () => {
                       className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-colors cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          item.impact === 'high' ? 'bg-red-100 text-red-800' :
-                          item.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {item.impact.toUpperCase()}
-                        </span>
+                        <div className="flex space-x-2">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            item.impact === 'high' ? 'bg-red-100 text-red-800' :
+                            item.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {item.impact.toUpperCase()}
+                          </span>
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                            item.sentiment === 'Bullish' ? 'bg-emerald-100 text-emerald-800' :
+                            item.sentiment === 'Bearish' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {item.sentiment === 'Bullish' ? '\u25B2' : item.sentiment === 'Bearish' ? '\u25BC' : '\u25CF'} {item.sentiment}
+                          </span>
+                        </div>
                         <time className="text-xs text-gray-500">{item.time}</time>
                       </div>
 
@@ -1680,7 +1696,7 @@ const FXTracker = () => {
                       </h3>
 
                       <p className="text-sm text-gray-600 mb-2">
-                        {item.summary}
+                        {item.aiSummary || item.summary}
                       </p>
 
                       <div className="flex justify-between items-center">
