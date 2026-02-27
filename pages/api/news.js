@@ -3,11 +3,33 @@ import { getTimeAgo } from '../../lib/utils/dateUtils.js';
 import { extractCurrencies, determineImpact, determineSentiment } from '../../lib/utils/textUtils.js';
 import Anthropic from '@anthropic-ai/sdk';
 
+// Map ISO codes to common names for better search queries
+const CURRENCY_NAMES = {
+  USD: 'dollar', EUR: 'euro', GBP: 'pound', JPY: 'yen',
+  CHF: 'franc', ZAR: 'rand', CNY: 'yuan', INR: 'rupee',
+  AUD: 'australian dollar', NZD: 'new zealand dollar', CAD: 'canadian dollar',
+  BRL: 'real', MXN: 'peso', TRY: 'lira', SEK: 'krona', NOK: 'krone',
+  SGD: 'singapore dollar', HKD: 'hong kong dollar', KRW: 'won',
+};
+
+function buildSearchQuery(base, quote) {
+  const baseName = CURRENCY_NAMES[base] || base;
+  const quoteName = CURRENCY_NAMES[quote] || quote;
+  return `("${base}" OR "${baseName}") AND ("${quote}" OR "${quoteName}") AND (forex OR currency OR "exchange rate")`;
+}
+
+function buildGNewsQuery(base, quote) {
+  // GNews has simpler query syntax
+  const baseName = CURRENCY_NAMES[base] || base;
+  const quoteName = CURRENCY_NAMES[quote] || quote;
+  return `${base} ${quote} ${baseName} ${quoteName} forex`;
+}
+
 /**
- * Enhance articles with Claude Haiku for better sentiment, impact, currencies, and summaries.
- * Returns null if the API key is missing or the call fails (caller should fall back).
+ * Enhance articles with Claude Haiku — assess relevance to the selected pair,
+ * provide sentiment, impact, and summaries. Returns null on failure.
  */
-async function enhanceWithAI(articles) {
+async function enhanceWithAI(articles, base, quote) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -24,11 +46,14 @@ async function enhanceWithAI(articles) {
       messages: [
         {
           role: 'user',
-          content: `You are a forex market analyst. Analyse each article below and return a JSON array (no markdown fences) with one object per article in the same order. Each object must have:
-- "sentiment": "Bullish", "Bearish", or "Neutral"
-- "impact": "high", "medium", or "low"
-- "currencies": array of up to 3 ISO currency codes mentioned or implied (e.g. ["USD","EUR"])
-- "aiSummary": a concise 1-2 sentence summary of market implications
+          content: `You are a forex market analyst focused on the ${base}/${quote} currency pair.
+
+Analyse each article below and return a JSON array (no markdown fences) with one object per article in the same order. Each object must have:
+- "relevant": true if the article is relevant to ${base}, ${quote}, or factors that directly affect ${base}/${quote} (e.g. central bank policy, trade data, economic indicators for either country). false otherwise.
+- "sentiment": "Bullish", "Bearish", or "Neutral" — specifically for the ${base}/${quote} pair (Bullish = ${base} strengthens vs ${quote})
+- "impact": "high", "medium", or "low" — how much this could move ${base}/${quote}
+- "currencies": array of ISO currency codes mentioned or implied (e.g. ["${base}","${quote}"])
+- "aiSummary": 1-2 sentence summary of implications specifically for ${base}/${quote}
 
 ${articlesBlock}
 
@@ -58,6 +83,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const base = (req.query.base || 'USD').toUpperCase();
+  const quote = (req.query.quote || 'ZAR').toUpperCase();
+
   try {
     // Try multiple news APIs in order of preference
     const newsApis = [
@@ -67,8 +95,8 @@ export default async function handler(req, res) {
           const NEWS_API_KEY = process.env.NEWS_API_KEY;
           if (!NEWS_API_KEY) throw new Error('NEWS_API_KEY not configured');
 
-          const query = 'forex OR currency OR "central bank" OR "interest rate" OR "exchange rate"';
-          const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=10&apiKey=${NEWS_API_KEY}`;
+          const query = buildSearchQuery(base, quote);
+          const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=15&apiKey=${NEWS_API_KEY}`;
 
           const response = await fetch(url);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -86,7 +114,7 @@ export default async function handler(req, res) {
             currencies: extractCurrencies(article.title + ' ' + article.description),
             url: article.url,
             sentiment: determineSentiment(article.title + ' ' + article.description)
-          })).slice(0, 6);
+          })).slice(0, 15);
         }
       },
       {
@@ -95,8 +123,8 @@ export default async function handler(req, res) {
           const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
           if (!GNEWS_API_KEY) throw new Error('GNEWS_API_KEY not configured');
 
-          const query = 'forex currency central bank';
-          const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=10&apikey=${GNEWS_API_KEY}`;
+          const query = buildGNewsQuery(base, quote);
+          const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=15&apikey=${GNEWS_API_KEY}`;
 
           const response = await fetch(url);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -114,7 +142,7 @@ export default async function handler(req, res) {
             currencies: extractCurrencies(article.title + ' ' + article.description),
             url: article.url,
             sentiment: determineSentiment(article.title + ' ' + article.description)
-          })).slice(0, 6);
+          })).slice(0, 15);
         }
       },
       {
@@ -140,7 +168,7 @@ export default async function handler(req, res) {
             currencies: extractCurrencies(item.title + ' ' + item.description),
             url: item.link,
             sentiment: determineSentiment(item.title)
-          })).slice(0, 6);
+          })).slice(0, 15);
         }
       }
     ];
@@ -148,29 +176,38 @@ export default async function handler(req, res) {
     // Try each API
     for (const api of newsApis) {
       try {
-        console.log(`Trying ${api.name} for news...`);
+        console.log(`Trying ${api.name} for ${base}/${quote} news...`);
         const newsItems = await api.fetch();
-        console.log(`Successfully fetched news from ${api.name}`);
+        console.log(`Successfully fetched ${newsItems.length} articles from ${api.name}`);
 
-        // Attempt AI enhancement
-        const aiResults = await enhanceWithAI(newsItems);
+        // Attempt AI enhancement with pair-specific filtering
+        const aiResults = await enhanceWithAI(newsItems, base, quote);
         let enhanced = false;
+        let finalNews = newsItems;
 
         if (aiResults) {
-          // Merge AI results onto the news items
+          // Merge AI results and filter to only relevant articles
+          const merged = [];
           for (let i = 0; i < newsItems.length; i++) {
             const ai = aiResults[i];
-            newsItems[i].sentiment = ai.sentiment;
-            newsItems[i].impact = ai.impact;
-            newsItems[i].currencies = ai.currencies;
-            newsItems[i].aiSummary = ai.aiSummary;
+            if (!ai.relevant) continue; // Drop irrelevant articles
+            merged.push({
+              ...newsItems[i],
+              sentiment: ai.sentiment,
+              impact: ai.impact,
+              currencies: ai.currencies,
+              aiSummary: ai.aiSummary,
+            });
           }
-          enhanced = true;
-          console.log('AI enhancement applied successfully');
+          finalNews = merged.length > 0 ? merged.slice(0, 8) : newsItems.slice(0, 6);
+          enhanced = merged.length > 0;
+          console.log(`AI enhancement: ${merged.length} relevant articles out of ${newsItems.length}`);
+        } else {
+          finalNews = newsItems.slice(0, 6);
         }
 
         return res.status(200).json({
-          news: newsItems,
+          news: finalNews,
           source: api.name,
           enhanced,
           lastUpdated: new Date().toISOString()

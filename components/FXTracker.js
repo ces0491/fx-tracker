@@ -449,7 +449,8 @@ const FXTracker = () => {
   const fetchNews = useCallback(async () => {
     setLoadingState(prev => ({ ...prev, news: 'loading' }));
     try {
-      const response = await fetch('/api/news');
+      const params = new URLSearchParams({ base: baseCurrency, quote: quoteCurrency });
+      const response = await fetch(`/api/news?${params}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -471,7 +472,7 @@ const FXTracker = () => {
       setLoadingState(prev => ({ ...prev, news: 'error' }));
       setErrors(prev => ({ ...prev, news: `Failed to fetch news: ${error.message}` }));
     }
-  }, []);
+  }, [baseCurrency, quoteCurrency]);
 
   const fetchEvents = useCallback(async () => {
     setLoadingState(prev => ({ ...prev, events: 'loading' }));
@@ -527,8 +528,11 @@ const FXTracker = () => {
     const maxPrice = Math.max(...validPrices);
     
     const range = maxPrice - minPrice;
-    const padding = Math.max(range * 0.05, range * 0.02);
-    
+    // Use 5% of range as padding, with a minimum of 0.5% of the mid-price
+    // so flat data still gets visible breathing room
+    const midPrice = (maxPrice + minPrice) / 2;
+    const padding = Math.max(range * 0.05, midPrice * 0.005);
+
     return [Math.max(0, minPrice - padding), maxPrice + padding];
   }, [indicators]);
 
@@ -612,6 +616,7 @@ const FXTracker = () => {
           />
           <YAxis
             domain={chartDomain}
+            allowDataOverflow={true}
             tickFormatter={formatRate}
             stroke="#374151"
             tick={{ fontSize: 12, fontWeight: 500 }}
