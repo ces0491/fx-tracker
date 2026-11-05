@@ -1,74 +1,84 @@
-// pages/api/forecast.js - FX Rate Forecasting with multiple algorithms
+// pages/api/forecast.js - Forecast for a pair, with the model's back-tested track record
+import { ALGORITHMS, HORIZONS } from '../../lib/config/forecast.js';
+import { RATE_SOURCE } from '../../lib/config/source.js';
 import {
-  trendBasedForecast,
-  linearRegressionForecast,
-  exponentialSmoothingForecast,
-  arimaLiteForecast,
-  ensembleForecast,
-  kalmanFilterForecast
-} from '../../lib/forecasting/algorithms.js';
+  RateSourceError,
+  assertSupported,
+  getDailyRates,
+  isoDateDaysAgo,
+  parsePair,
+} from '../../lib/data/frankfurter.js';
+import { BACKTEST, backtest } from '../../lib/forecasting/backtest.js';
+import { MIN_OBSERVATIONS, runModel } from '../../lib/forecasting/models.js';
+import { addDays, formatISODate } from '../../lib/utils/dateUtils.js';
+import { allowGetOnly, sendCached, sendError } from '../../lib/api/responses.js';
+
+// Three years: a year to fit at each back-test origin, a year of weekly
+// origins, and room for the longest horizon after the last one.
+const HISTORY_DAYS = 3 * 365;
+const ALGORITHM_VALUES = ALGORITHMS.map((a) => a.value);
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (!allowGetOnly(req, res)) return;
 
   try {
-    const { historicalData, algorithm = 'ensemble', forecastDays = 30 } = req.body;
-
-    if (!historicalData || !Array.isArray(historicalData) || historicalData.length < 10) {
-      return res.status(400).json({ error: 'Insufficient historical data. Need at least 10 data points.' });
+    const pair = parsePair(req.query.pair);
+    if (!pair) {
+      throw new RateSourceError('pair must be two different three-letter currency codes, e.g. NZD/ZAR', 400);
+    }
+    const algorithm = req.query.algorithm;
+    if (!ALGORITHM_VALUES.includes(algorithm)) {
+      throw new RateSourceError(`algorithm must be one of ${ALGORITHM_VALUES.join(', ')}`, 400);
+    }
+    const horizon = Number(req.query.horizon);
+    if (!HORIZONS.includes(horizon)) {
+      throw new RateSourceError(`horizon must be one of ${HORIZONS.join(', ')} days`, 400);
     }
 
-    // Extract close prices
-    const prices = historicalData.map(d => d.close);
-    const dates = historicalData.map(d => d.date);
-    const lastDate = new Date(dates[dates.length - 1]);
-
-    let forecastResult;
-
-    switch (algorithm) {
-      case 'trend':
-        forecastResult = trendBasedForecast(prices, lastDate, forecastDays);
-        break;
-
-      case 'linear_regression':
-        forecastResult = linearRegressionForecast(prices, lastDate, forecastDays);
-        break;
-
-      case 'exponential_smoothing':
-        forecastResult = exponentialSmoothingForecast(prices, lastDate, forecastDays);
-        break;
-
-      case 'arima_lite':
-        forecastResult = arimaLiteForecast(prices, lastDate, forecastDays);
-        break;
-
-      case 'kalman':
-        forecastResult = kalmanFilterForecast(prices, lastDate, forecastDays);
-        break;
-
-      case 'ensemble':
-      default:
-        forecastResult = ensembleForecast(prices, lastDate, forecastDays);
-        break;
+    const { base, quote } = pair;
+    await assertSupported([base, quote]);
+    const series = (await getDailyRates(base, [quote], isoDateDaysAgo(HISTORY_DAYS))).get(quote);
+    if (series.length < MIN_OBSERVATIONS) {
+      throw new RateSourceError(
+        `Only ${series.length} daily rates are available for ${base}/${quote}; at least ${MIN_OBSERVATIONS} are needed`,
+        422
+      );
     }
 
-    res.status(200).json({
-      forecast: forecastResult.forecast,
-      confidence: forecastResult.confidence,
+    const prices = series.map((p) => p.close);
+    const dates = series.map((p) => p.date);
+    const lastDate = dates[dates.length - 1];
+    const fitted = prices.slice(-BACKTEST.WINDOW);
+    const result = runModel(algorithm, fitted, horizon);
+    const record = backtest(prices, algorithm, horizon);
+
+    sendCached(res, {
+      pair: `${base}/${quote}`,
       algorithm,
-      metadata: {
-        trainingPoints: prices.length,
-        forecastHorizon: forecastDays,
-        accuracy: forecastResult.accuracy,
-        mae: forecastResult.mae,
-        ...(forecastResult.latestVolatility && { latestVolatility: forecastResult.latestVolatility })
-      }
+      horizon,
+      asOf: lastDate,
+      interval: 0.95,
+      fittedObservations: fitted.length,
+      forecast: result.mean.map((rate, i) => ({
+        date: formatISODate(addDays(new Date(lastDate), i + 1)),
+        rate,
+        lower: result.lower[i],
+        upper: result.upper[i],
+      })),
+      backtest: record && {
+        forecasts: record.forecasts,
+        firstOrigin: dates[record.firstOrigin],
+        lastOrigin: dates[record.lastOrigin],
+        stepDays: BACKTEST.STEP,
+        windowObservations: BACKTEST.WINDOW,
+        meanAbsPctError: record.meanAbsPctError,
+        noChangeMeanAbsPctError: record.noChangeMeanAbsPctError,
+        held: record.held,
+        coverage: record.coverage,
+      },
+      source: RATE_SOURCE,
     });
-
   } catch (error) {
-    console.error('Forecasting error:', error);
-    res.status(500).json({ error: error.message || 'Failed to generate forecast' });
+    sendError(res, error);
   }
 }

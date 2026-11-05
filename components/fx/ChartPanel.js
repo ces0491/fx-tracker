@@ -92,8 +92,8 @@ export default function ChartPanel({
     { label: `${pair} daily rate`, color: 'var(--series-rate)', kind: 'line' },
     ...(forecast?.length
       ? [
-          { label: `Forecast, ${algorithmLabel.toLowerCase()}`, color: 'var(--series-rate)', kind: 'dashed' },
-          { label: 'Model range', color: 'var(--series-rate)', kind: 'band' },
+          { label: `Forecast (${algorithmLabel})`, color: 'var(--series-rate)', kind: 'dashed' },
+          { label: '95% range', color: 'var(--series-rate)', kind: 'band' },
         ]
       : []),
     ...(overlays.includes('sma5') ? [{ label: '5-day average', color: 'var(--series-short)', kind: 'line' }] : []),

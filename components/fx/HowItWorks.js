@@ -56,17 +56,26 @@ export default function HowItWorks() {
 
         <Column title="Forecasts">
           <p>
-            Each model is fitted to the past year of daily rates for the pair and projected forward over the chosen
-            horizon. The shaded band is the model&apos;s own estimate of its uncertainty.
+            Each model is fitted to the last 365 daily rates for the pair and projected forward over the chosen
+            horizon. The shaded band is the model&apos;s 95% prediction interval, which is only as good as the
+            model&apos;s assumptions.
           </p>
           {ALGORITHMS.map((algorithm) => (
             <Term key={algorithm.value} name={algorithm.label}>
               {algorithm.description}
             </Term>
           ))}
+          <Term name="Track record">
+            Every week over the past year, the model is refitted on the 365 days before that week and asked for a
+            forecast at the chosen horizon, which is then compared with the rate that followed. The average miss is set
+            against the simplest forecast there is: that the rate stays where it is. The count shows how often the
+            actual rate landed inside the 95% range. Neighbouring forecasts overlap in time, so treat these figures as a
+            guide, not a precise score.
+          </Term>
           <p>
-            The models only see past rates. They know nothing about rate decisions, elections or anything else that
-            moves a currency.
+            Tested this way on NZD/ZAR, EUR/USD and USD/JPY over the year to November 2026, none of these models was
+            clearly more accurate than assuming no change, which is the usual result for exchange rates. The models only
+            see past rates and know nothing about rate decisions, elections or anything else that moves a currency.
           </p>
         </Column>
       </div>

@@ -53,7 +53,7 @@ function Result({ query, latest, decimals, unavailable }) {
         <span className="text-muted">from the latest rate</span>
       </p>
       <p className="mt-3 text-sm">
-        <span className="text-muted">Model range </span>
+        <span className="text-muted">95% range </span>
         <span className="font-medium tabular-nums">
           {formatRate(end.lower, decimals)} to {formatRate(end.upper, decimals)}
         </span>

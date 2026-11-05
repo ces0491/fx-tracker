@@ -31,7 +31,7 @@ function ChartTooltip({ active, payload, label, decimals, overlays }) {
     items.push({
       key: 'band',
       value: `${formatRate(row.band[0], decimals)} to ${formatRate(row.band[1], decimals)}`,
-      name: 'Model range',
+      name: '95% range',
       color: 'var(--series-rate)',
       kind: 'band',
     });

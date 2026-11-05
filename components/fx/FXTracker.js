@@ -10,6 +10,7 @@ import PopularPairs from './PopularPairs';
 import SiteFooter from './SiteFooter';
 import SiteHeader from './SiteHeader';
 import StatsStrip from './StatsStrip';
+import TrackRecord from './TrackRecord';
 import { withIndicators } from '@/lib/analysis/indicators';
 import { pairStats } from '@/lib/analysis/stats';
 import { downloadCsv } from '@/lib/client/csv';
@@ -41,7 +42,8 @@ export default function FXTracker({ initialPair }) {
     [history.data]
   );
   const stats = useMemo(() => (series ? pairStats(series) : null), [series]);
-  const forecast = useForecast({ pair, series: isCurrent ? series : null, algorithm, horizon });
+  const historyFailed = history.isError && !history.data;
+  const forecast = useForecast({ pair, algorithm, horizon, enabled: !historyFailed });
 
   const selectPair = useCallback((next) => {
     setPair(next);
@@ -65,7 +67,7 @@ export default function FXTracker({ initialPair }) {
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   };
 
-  const forecastPoints = isCurrent ? forecast.data?.forecast : undefined;
+  const forecastPoints = isCurrent && forecast.data?.pair === pair ? forecast.data.forecast : undefined;
   const algorithmLabel = ALGORITHMS.find((a) => a.value === algorithm)?.label ?? algorithm;
 
   const exportCsv = () => {
@@ -80,8 +82,6 @@ export default function FXTracker({ initialPair }) {
       rows
     );
   };
-
-  const historyFailed = history.isError && !history.data;
 
   return (
     <>
@@ -101,42 +101,50 @@ export default function FXTracker({ initialPair }) {
         <div className="mx-auto max-w-6xl space-y-12 px-4 pb-20 sm:px-8">
           <section aria-label="Chart and forecast">
             <ChartToolbar range={range} onRangeChange={setRange} overlays={overlays} onOverlaysChange={setOverlays} />
+            {/* Chart and track record on the left, forecast controls on the right; stacked in that order on phones. */}
             <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
-              {historyFailed ? (
-                <ChartPanelError
-                  pair={pair}
-                  message={history.error.message}
-                  canRetry={(history.error.status ?? 500) >= 500}
-                  onRetry={() => history.refetch()}
+              <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+                {historyFailed ? (
+                  <ChartPanelError
+                    pair={pair}
+                    message={history.error.message}
+                    canRetry={(history.error.status ?? 500) >= 500}
+                    onRetry={() => history.refetch()}
+                  />
+                ) : series ? (
+                  <ChartPanel
+                    pair={shownPair}
+                    series={series}
+                    stats={stats}
+                    forecast={showForecast ? forecastPoints : undefined}
+                    algorithmLabel={algorithmLabel}
+                    overlays={overlays}
+                    range={range}
+                    isRefreshing={!isCurrent}
+                    loadingPair={pair}
+                    onDownload={exportCsv}
+                  />
+                ) : (
+                  <ChartPanelSkeleton />
+                )}
+              </div>
+              <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+                <ForecastPanel
+                  algorithm={algorithm}
+                  onAlgorithmChange={setAlgorithm}
+                  horizon={horizon}
+                  onHorizonChange={setHorizon}
+                  unavailable={historyFailed}
+                  showOnChart={showForecast}
+                  onShowOnChartChange={setShowForecast}
+                  query={forecast}
+                  latest={isCurrent ? stats?.latest : null}
+                  decimals={isCurrent && stats ? rateDecimals(stats.latest.close) : 4}
                 />
-              ) : series ? (
-                <ChartPanel
-                  pair={shownPair}
-                  series={series}
-                  stats={stats}
-                  forecast={showForecast ? forecastPoints : undefined}
-                  algorithmLabel={algorithmLabel}
-                  overlays={overlays}
-                  range={range}
-                  isRefreshing={!isCurrent}
-                  loadingPair={pair}
-                  onDownload={exportCsv}
-                />
-              ) : (
-                <ChartPanelSkeleton />
-              )}
-              <ForecastPanel
-                algorithm={algorithm}
-                onAlgorithmChange={setAlgorithm}
-                horizon={horizon}
-                onHorizonChange={setHorizon}
-                unavailable={historyFailed}
-                showOnChart={showForecast}
-                onShowOnChartChange={setShowForecast}
-                query={forecast}
-                latest={isCurrent ? stats?.latest : null}
-                decimals={isCurrent && stats ? rateDecimals(stats.latest.close) : 4}
-              />
+              </div>
+              <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+                <TrackRecord query={forecast} algorithmLabel={algorithmLabel} horizon={horizon} unavailable={historyFailed} />
+              </div>
             </div>
           </section>
 
