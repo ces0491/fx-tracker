@@ -1,0 +1,152 @@
+'use client';
+
+import { useMemo } from 'react';
+import { AlertTriangle, Download } from 'lucide-react';
+import DataTable from './DataTable';
+import PriceChart from './PriceChart';
+import RsiChart from './RsiChart';
+import SeriesKey from '@/components/ui/series-key';
+import { buildChartRows, niceTicks, valueDomain } from '@/lib/analysis/chart';
+import { formatIsoDate, formatRate, rateDecimals } from '@/lib/format';
+import { cn } from '@/lib/cn';
+
+const CHART_HEIGHT = 'clamp(260px, 44vw, 440px)';
+
+function Legend({ items }) {
+  // One series needs no key: the heading above names it.
+  if (items.length < 2) return <p className="text-sm">{items[0]?.label}</p>;
+  return (
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm" aria-label="Chart key">
+      {items.map((item) => (
+        <li key={item.label} className="inline-flex items-center gap-2">
+          <SeriesKey color={item.color} kind={item.kind} />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function ChartPanelSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border bg-raised p-5 shadow-card" aria-busy="true">
+      <span className="sr-only">Loading rates</span>
+      <div className="h-4 w-48 animate-pulse rounded bg-surface" />
+      <div className="mt-4 animate-pulse rounded-lg bg-surface" style={{ height: CHART_HEIGHT }} />
+    </div>
+  );
+}
+
+export function ChartPanelError({ pair, message, canRetry, onRetry }) {
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-2xl border border-border bg-raised p-6 shadow-card" role="alert">
+      <AlertTriangle aria-hidden className="size-5 text-danger" />
+      <p className="font-medium">Rates for {pair} didn&apos;t load</p>
+      <p className="max-w-prose text-sm text-muted">
+        {message}. {canRetry ? 'Try again, or pick another pair.' : 'Pick another pair from the heading above or the list below.'}
+      </p>
+      {canRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+        >
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Price chart, optional RSI chart and table view for one pair. While another
+ * pair loads, the current one stays on screen, faded.
+ */
+export default function ChartPanel({
+  pair,
+  series,
+  stats,
+  forecast,
+  algorithmLabel,
+  overlays,
+  range,
+  isRefreshing,
+  loadingPair,
+  onDownload,
+}) {
+  const rows = useMemo(() => buildChartRows(series, { range, forecast }), [series, range, forecast]);
+  const lastObserved = series[series.length - 1];
+  const decimals = rateDecimals(lastObserved.close);
+  const axis = useMemo(
+    () =>
+      niceTicks(
+        valueDomain(rows, {
+          overlays,
+          extraValues: overlays.includes('range') && stats ? [stats.low30, stats.high30] : [],
+        })
+      ),
+    [rows, overlays, stats]
+  );
+
+  const legend = [
+    { label: `${pair} daily rate`, color: 'var(--series-rate)', kind: 'line' },
+    ...(forecast?.length
+      ? [
+          { label: `Forecast, ${algorithmLabel.toLowerCase()}`, color: 'var(--series-rate)', kind: 'dashed' },
+          { label: 'Model range', color: 'var(--series-rate)', kind: 'band' },
+        ]
+      : []),
+    ...(overlays.includes('sma5') ? [{ label: '5-day average', color: 'var(--series-short)', kind: 'line' }] : []),
+    ...(overlays.includes('sma20') ? [{ label: '20-day average', color: 'var(--series-long)', kind: 'line' }] : []),
+    ...(overlays.includes('bollinger') ? [{ label: 'Bollinger bands', color: 'var(--series-long)', kind: 'band' }] : []),
+  ];
+
+  const first = rows[0];
+  const summary = `${pair} daily rate from ${formatIsoDate(first.date)} to ${formatIsoDate(lastObserved.date)}, latest ${formatRate(
+    lastObserved.close,
+    decimals
+  )}${forecast?.length ? `, with a ${forecast.length}-day forecast` : ''}. The same figures are in the table below the chart.`;
+
+  return (
+    <div className="min-w-0 rounded-2xl border border-border bg-raised p-4 shadow-card sm:p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <Legend items={legend} />
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row-reverse sm:items-center sm:gap-4">
+          <button
+            type="button"
+            onClick={onDownload}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm text-muted transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download aria-hidden className="size-4" />
+            Download CSV
+          </button>
+          {isRefreshing && (
+            <p className="text-sm text-muted" role="status">
+              Loading {loadingPair}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className={cn('mt-3 space-y-4 transition-opacity', isRefreshing && 'opacity-40')} aria-busy={isRefreshing}>
+        <figure role="img" aria-label={summary}>
+          <PriceChart
+            rows={rows}
+            domain={axis.domain}
+            ticks={axis.ticks}
+            tickDecimals={axis.decimals}
+            decimals={decimals}
+            overlays={overlays}
+            stats={stats}
+            lastObservedDate={lastObserved.date}
+            height={CHART_HEIGHT}
+          />
+        </figure>
+        {overlays.includes('rsi') && <RsiChart rows={rows} />}
+      </div>
+      <DataTable pair={pair} rows={rows} decimals={decimals} />
+    </div>
+  );
+}

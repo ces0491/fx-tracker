@@ -1,11 +1,12 @@
-// pages/api/latest.js - Latest rate and change on the previous observation for the popular pairs
+// pages/api/latest.js - Latest rate, change on the previous observation and the last
+// month of daily rates for the popular pairs
 import { POPULAR_PAIRS } from '../../lib/config/pairs.js';
 import { RATE_SOURCE } from '../../lib/config/source.js';
 import { getCurrencies, getDailyRates, isoDateDaysAgo, parsePair } from '../../lib/data/frankfurter.js';
 import { allowGetOnly, sendCached, sendError } from '../../lib/api/responses.js';
 
-// Long enough to find a previous observation across holiday closures.
-const LOOKBACK_DAYS = 10;
+// One month of daily rates, returned for the sparklines.
+const LOOKBACK_DAYS = 30;
 
 export default async function handler(req, res) {
   if (!allowGetOnly(req, res)) return;
@@ -39,6 +40,7 @@ export default async function handler(req, res) {
           previousRate: previous ? previous.close : null,
           previousDate: previous ? previous.date : null,
           changePct: previous ? ((latest.close - previous.close) / previous.close) * 100 : null,
+          series,
         };
       }
     }
