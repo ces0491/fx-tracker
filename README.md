@@ -1,352 +1,204 @@
-# 🌍 FX Tracker
+# FX Tracker
 
-A foreign exchange tracking application built with Next.js,
-featuring real-time currency rates, forecasting, historical data
-analysis, technical indicators, and live market news.
+Daily exchange rates, technical indicators and statistical forecasts for
+currency pairs. Built with Next.js, with rate data from
+[Frankfurter](https://frankfurter.dev).
 
-![FX Tracker Pro](https://img.shields.io/badge/Next.js-15.4.2-black)
-![React](https://img.shields.io/badge/React-18.x-blue)
-![Tailwind](https://img.shields.io/badge/Tailwind-CSS-38B2AC)
-![Python](https://img.shields.io/badge/Python-3.11-blue)
-![ML](https://img.shields.io/badge/ML-Ready-green)
+## Features
 
-## ✨ Features
+- **Daily rates**: blended daily mid-market rates from Frankfurter v2, which
+  combines central-bank and other official sources. Rates are daily, not
+  intraday, and each is shown with its date. Frankfurter can revise a day's
+  blended rate as more sources report.
+- **Currencies**: the active ISO 4217 currencies Frankfurter publishes.
+  Crypto-assets and other non-ISO codes are excluded. Each currency code in the
+  page heading opens a searchable list; the swap button reverses the pair.
+- **Shareable links**: the selected pair is kept in the URL, for example
+  `/?pair=NZD-ZAR`.
+- **History**: one year of daily rates per pair, with 1M, 3M, 6M, YTD and 1Y
+  ranges and CSV export.
+- **Technical indicators**: 5- and 20-day simple moving averages, Bollinger
+  Bands (20-day, 2 standard deviations), 14-day RSI, and support/resistance
+  (the lowest and highest rate over the last 30 observations).
+- **Volatility**: volatility of daily log returns over the last 30
+  observations, annualised at the series' own frequency. Frankfurter's blended
+  series is calendar-daily, so that is about 365 observations a year.
+- **Forecasts**: six models over horizons of 7, 14, 30, 60 or 90 days, each
+  fitted to the last 365 daily rates and drawn as a fan of 50%, 80% and 95%
+  prediction intervals:
+  - Trend: recent average daily change, fading with a 30-day time constant;
+    random-walk interval
+  - Linear regression on time, with the textbook prediction interval
+  - Exponential smoothing: Holt's method with alpha 0.3 and beta 0.1, interval
+    as R's `predict.HoltWinters`
+  - ARIMA-lite: ARIMA(3,1,0) without a constant, AR coefficients by least
+    squares, interval from the psi weights
+  - Kalman filter: damped local linear trend in log rates (slope damping 0.95),
+    noise variances by maximum likelihood
+  - Ensemble: equal-weight average of trend, linear regression and exponential
+    smoothing; its interval averages the members' half-widths
+- **Track record**: every forecast comes with a back-test. Over the last 52
+  weeks the model is refitted each week on the preceding 365 days, and its
+  forecast at the chosen horizon is compared with the rate that followed. The
+  page shows the average absolute percentage miss, the same figure for a
+  no-change forecast, and how many actual rates landed inside the 50% and 95%
+  ranges.
+- **Popular pairs**: latest rate, change on the previous day and a 30-day
+  sparkline for 18 preset pairs.
+- **Accessibility**: every chart has a table view, controls work from the
+  keyboard, and the light and dark themes follow the system setting.
 
-### 🔄 Real-Time Data
+## Tech stack
 
-- **Live Exchange Rates**: Real-time currency conversion for 27+ major currencies
-- **Cross-Rate Calculations**: Automatic calculation of all currency pair combinations
-- **Auto-Refresh**: Automated updates with status indicators
-- **Free Fallback APIs**: Works without API keys using Frankfurter & ExchangeRate-API
+- Next.js 15: App Router for the page, Pages Router for the API routes
+- React 19, Tailwind CSS 4, Recharts, lucide-react
+- Radix UI primitives and cmdk for the controls, TanStack Query for data fetching
+- Its own look: IBM Plex Sans, ink on cool paper with petrol teal, and a
+  forecast fan as its mark; Sheet Solved appears as the maker credit
+- Hosted on Vercel
 
-### 📊 Analytics & Charting
+## Getting started
 
-- **1-Year Historical Data**: Real historical forex data (365 days) via Frankfurter API
-- **Technical Indicators**:
-  - Simple Moving Averages (5-day, 20-day)
-  - Bollinger Bands
-  - RSI (Relative Strength Index)
-  - Support/Resistance levels
-- **Multiple Chart Types**: Line charts and candlestick views
-- **Interactive Charts**: Zoom, pan, and export functionality
-
-### 🤖 Forecasting
-
-**9 Forecasting Algorithms** with hybrid JavaScript + Python architecture:
-
-**JavaScript Algorithms** (Built-in, no setup required):
-
-- Trend-Based (65% confidence)
-- Linear Regression (70% confidence)
-- Exponential Smoothing (72% confidence)
-- ARIMA-Lite (75% confidence)
-- **Ensemble** (80% confidence) ⭐ Recommended
-
-**Python ML Algorithms** (Optional, requires Python service):
-
-- Facebook Prophet (88% confidence) - Best for seasonal patterns
-- LSTM Neural Network (85% confidence) - Complex patterns
-- GARCH Volatility (82% confidence) - Risk management
-- XGBoost (83% confidence) - Short-term predictions
-
-**Features**:
-
-- 95% confidence intervals with upper/lower bounds
-- Forecast horizons: 7, 14, 30, 60, 90 days
-- Real-time accuracy metrics
-- Algorithm comparison and selection
-- Automatic fallback to JavaScript if Python unavailable
-
-See [FORECASTING.md](FORECASTING.md) for detailed documentation.
-
-### 📈 Tools
-
-- **Popular Pairs**: Pre-configured currency pairs (NZD/ZAR, EUR/USD, etc.)
-- **Custom Pair Selection**: Choose any base and quote currency combination
-- **Data Export**: Download historical data and indicators as CSV
-- **Volatility Analysis**: Annual volatility calculations with risk assessment
-
-### 📰 Market Intelligence
-
-- **Real Financial News**: Live forex news from RSS feeds (ForexLive)
-- **Multiple News Sources**: NewsAPI.org (free), GNews (free), RSS aggregation with fallback
-- **AI Sentiment Analysis**: Automatic bullish/bearish/neutral classification
-- **Impact Classification**: High/Medium/Low impact rating
-- **Currency Extraction**: Automatically identifies relevant currencies
-- **Economic Calendar**: Real 2025 events including:
-  - Federal Reserve FOMC meetings
-  - ECB Governing Council meetings
-  - RBNZ OCR decisions
-  - SARB MPC meetings
-  - CPI releases (US, NZ, South Africa)
-
-### 🔒 Security & Performance
-
-- **Secure API Architecture**: All external API calls routed through backend
-- **Environment Variable Protection**: API keys never exposed to frontend
-- **Error Handling**: Comprehensive error handling with retry logic
-- **Responsive Design**: Mobile-first design with Tailwind CSS
-
-## 🛠️ Tech Stack
-
-### Frontend
-
-- **Framework**: Next.js 15.4.2
-- **UI**: React 18.x with Hooks
-- **Styling**: Tailwind CSS
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Deployment**: Vercel-ready
-
-### Backend APIs (Node.js)
-
-- **Real-time Rates**: ExchangeRate-API (free, no key)
-- **Historical Data**: Frankfurter API (free, no key)
-- **News**: ForexLive RSS (free, no key)
-- **Events**: Static 2025 calendar + external APIs
-- **Forecasting**: 5 JavaScript algorithms built-in
-
-### Optional Python Microservice
-
-- **Framework**: Flask 3.0
-- **ML Libraries**:
-  - Facebook Prophet 1.1.5
-  - TensorFlow 2.15.0
-  - XGBoost 2.0.3
-  - GARCH (arch 6.3.0)
-- **Deployment**: Docker-ready with docker-compose
-
-## 📦 Installation
-
-### Prerequisites
-
-- Node.js 18.x or higher
-- npm or yarn
-- (Optional) Python 3.11+ for ML forecasting
-- (Optional) Docker for Python service
-
-### Quick Start (No API Keys Needed!)
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/yourusername/fx-tracker.git
-   cd fx-tracker
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Start development server**
-
-   ```bash
-   npm run dev
-   ```
-
-4. **Open your browser**
-
-   Navigate to `http://localhost:3000`
-
-**That's it!** The app works immediately with free APIs.
-
-### Optional: Add API Keys for Enhanced Features
-
-1. **Copy environment template**
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-2. **Add FREE API keys** (see [.env.example](.env.example) for step-by-step instructions):
-
-   ```env
-   # 100% FREE APIs - Get all 3 in ~5 minutes!
-   NEWS_API_KEY=your_newsapi_key           # newsapi.org
-   GNEWS_API_KEY=your_gnews_key            # gnews.io
-   EXCHANGE_RATE_API_KEY=your_key          # exchangerate-api.com
-   ```
-
-### Optional: Python ML Forecasting Service
-
-For advanced ML algorithms (Prophet, LSTM, GARCH, XGBoost):
-
-#### Option 1: Docker (Recommended)
+Requires Node.js 22.12 or later (Vitest 5 needs it; the app itself runs on 18.18 or later).
 
 ```bash
-cd python-forecast-service
-docker-compose up -d
+git clone https://github.com/ces0491/fx-tracker.git
+cd fx-tracker
+npm install
+npm run dev
 ```
 
-#### Option 2: Local Python
+Then open <http://localhost:3000>. No environment variables or API keys are
+needed.
 
-```bash
-cd python-forecast-service
-pip install -r requirements.txt
-python app.py
-```
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Development server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint (`eslint .`, including tests and config files) |
+| `npm test` | Vitest unit tests |
 
-See [python-forecast-service/README.md](python-forecast-service/README.md) for details.
+## API routes
 
-## 🔑 API Keys (All Optional!)
+| Route | Method | Returns |
+| --- | --- | --- |
+| `/api/currencies` | GET | Currencies available from Frankfurter (ISO 4217 only) |
+| `/api/latest` | GET | Latest rate, change on the previous day and the last 30 days for the popular pairs |
+| `/api/historical?pair=NZD/ZAR` | GET | One year of daily rates as `{ date, close }` |
+| `/api/forecast?pair=NZD/ZAR&algorithm=ensemble&horizon=30` | GET | Forecast with its 95% interval and back-test |
 
-### ✅ Works Without Any API Keys
+Vercel's CDN caches every route above for an hour and may serve a stale
+copy for up to a day while it refreshes
+(`Vercel-CDN-Cache-Control: public, max-age=3600, stale-while-revalidate=86400`).
+Browsers revalidate on every request
+(`Cache-Control: public, max-age=0, must-revalidate`), so a visitor's own
+cache never shows an older rate than the CDN has.
 
-The app uses free fallback services:
+`/api/historical` returns 400 for a malformed or unsupported pair, 422 when
+fewer than 30 daily rates exist for the pair in the last year, and 502 when
+Frankfurter can't be reached or returns a server error.
 
-- **Rates**: ExchangeRate-API (free, no key)
-- **Historical**: Frankfurter API (free, no key)
-- **News**: ForexLive RSS (free, no key)
-- **Events**: Static 2025 economic calendar
-
-### Free API Keys for Enhanced Features (100% Free!)
-
-| API | Purpose | Free Tier | Setup Time |
-|-----|---------|-----------|------------|
-| **NewsAPI.org** | Better news coverage | 100 req/day | [Sign up](https://newsapi.org/) - 2 min |
-| **GNews API** | Alternative news | 100 req/day | [Sign up](https://gnews.io/) - 2 min |
-| **ExchangeRate-API** | Higher rate limits | 1,500/month | [Sign up](https://app.exchangerate-api.com/sign-up) - 1 min |
-
-**Note**: All APIs above are 100% free forever. No credit card required!
-
-### Environment Variables
-
-See [.env.example](.env.example) for complete configuration with detailed notes.
-
-### Production Deployment (Vercel)
-
-1. **Deploy to Vercel**
-
-   ```bash
-   npm install -g vercel
-   vercel
-   ```
-
-2. **Optional: Add API keys in Vercel dashboard**
-   - Settings → Environment Variables
-   - Add any optional keys
-
-3. **Python Service** (optional):
-   - Deploy Python service separately (Railway, Render, or own server)
-   - Set `PYTHON_FORECAST_SERVICE_URL` in Vercel
-
-## 📁 Project Structure
-
-```text
-fx-tracker/
-├── components/
-│   └── FXTracker.js              # Main React component
-├── pages/
-│   ├── api/                      # Backend API routes (Node.js)
-│   │   ├── rates.js             # Real-time rates
-│   │   ├── historical.js        # 90-day historical data
-│   │   ├── forecast.js          # 5 JS forecasting algorithms
-│   │   ├── news.js              # Live financial news
-│   │   └── events.js            # Economic calendar
-│   ├── _app.js                  # Next.js app wrapper
-│   └── index.js                 # Main page
-├── python-forecast-service/      # Optional ML microservice
-│   ├── app.py                   # Flask REST API
-│   ├── requirements.txt         # Python dependencies
-│   ├── Dockerfile               # Docker configuration
-│   ├── docker-compose.yml       # Docker Compose setup
-│   └── README.md                # Python service docs
-├── public/                       # Static assets
-├── styles/                       # Global styles
-├── .env.example                 # Environment template
-├── FORECASTING.md               # Forecasting documentation
-├── package.json                 # Node dependencies
-└── README.md                    # This file
-```
-
-## 🔌 API Endpoints
-
-### Backend API Routes (Next.js)
-
-| Endpoint | Method | Description | Response Time |
-|----------|--------|-------------|---------------|
-| `/api/rates` | GET | Real-time rates for all currency pairs | < 500ms |
-| `/api/historical?pair=NZD/ZAR` | GET | 90-day historical OHLC data | < 2s |
-| `/api/forecast` | POST | Generate forecast with selected algorithm | < 5s |
-| `/api/news` | GET | Live financial news with sentiment | < 2s |
-| `/api/events` | GET | Economic calendar (next 90 days) | < 1s |
-
-### Python ML Service (Optional)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `http://localhost:5000/forecast` | POST | Advanced ML forecasts |
-| `http://localhost:5000/health` | GET | Service health check |
-| `http://localhost:5000/algorithms` | GET | List available algorithms |
-
-### Example Responses
-
-**Rates**:
+`/api/latest` response, abridged:
 
 ```json
 {
+  "source": { "name": "Frankfurter", "url": "https://frankfurter.dev" },
   "rates": {
-    "NZD/ZAR": 9.6573,
-    "EUR/USD": 1.0856
-  },
-  "timestamp": "2025-01-20T12:00:00Z"
+    "NZD/ZAR": {
+      "rate": 9.2404,
+      "date": "2026-11-05",
+      "previousRate": 9.2823,
+      "previousDate": "2026-11-04",
+      "changePct": -0.451,
+      "series": [{ "date": "2026-10-06", "close": 9.2873 }]
+    }
+  }
 }
 ```
 
-**Forecast**:
+`/api/forecast` fetches three years of rates for the pair, fits the model to
+the last 365 and runs the back-test. `algorithm` is one of `ensemble`,
+`trend`, `linear_regression`, `exponential_smoothing`, `arima_lite` or
+`kalman`; `horizon` is 7, 14, 30, 60 or 90. Anything else gets a 400. The
+response, abridged:
 
 ```json
 {
+  "pair": "NZD/ZAR",
+  "algorithm": "kalman",
+  "horizon": 30,
+  "asOf": "2026-11-05",
   "forecast": [
     {
-      "date": "2025-02-20",
-      "rate": 9.7123,
-      "upper": 9.8456,
-      "lower": 9.5790
+      "date": "2026-11-06",
+      "rate": 9.2233,
+      "lower": 9.1716,
+      "upper": 9.2754,
+      "lower80": 9.1895,
+      "upper80": 9.2573,
+      "lower50": 9.2055,
+      "upper50": 9.2412
     }
   ],
-  "algorithm": "ensemble",
-  "confidence": 0.80,
-  "accuracy": 0.78
+  "backtest": {
+    "forecasts": 52,
+    "firstOrigin": "2025-10-14",
+    "lastOrigin": "2026-10-06",
+    "meanAbsPctError": 2.13,
+    "noChangeMeanAbsPctError": 1.75,
+    "held": 52,
+    "coverage": 1,
+    "held50": 30,
+    "coverage50": 0.58
+  }
 }
 ```
 
-## 📊 Features Deep Dive
+In each forecast point, `lower`/`upper` bound the 95% prediction interval,
+`lower80`/`upper80` the 80% and `lower50`/`upper50` the 50%. `held` and
+`held50` count back-test forecasts whose actual rate fell inside the 95% and
+50% ranges. `backtest` is null when the pair has too little history for 12
+weekly origins.
 
-### Technical Analysis
+## Tests
 
-- **Moving Averages**: 5 and 20-period SMAs for trend identification
-- **Bollinger Bands**: Volatility bands with 2σ standard deviations
-- **RSI**: 14-period momentum oscillator
-- **Support/Resistance**: Dynamic levels from 30-day highs/lows
-- **Volatility**: Annualized volatility calculation
+`npm test` runs the Vitest suite in `tests/`. The model tests use three years
+of real NZD/ZAR, EUR/USD and USD/JPY rates saved in `tests/fixtures/`, and
+check linear regression, Holt and ARIMA-lite against values computed in R
+(`tests/reference/expected.json`). To regenerate those values, run
+`Rscript tests/reference/generate.R` from the project root (needs R and the
+jsonlite package). GitHub Actions runs lint, tests and the build on every pull
+request and every push to `main`.
 
-### Advanced Forecasting System
+## Dependency audit
 
-**9 Algorithms Available**:
+`npm audit --omit=dev` reports one high advisory, in postcss 8.4.31, plus a
+moderate on `next` because of it. Next 15 pins that postcss version and uses it
+only to process this project's own CSS at build time; the advisories need
+attacker-controlled CSS or source maps, so they don't apply here. Next 16
+ships a fixed postcss.
 
-| Algorithm | Type | Confidence | Speed | Best For |
-|-----------|------|------------|-------|----------|
-| Trend | JS | 65% | ⚡⚡⚡ | Quick analysis |
-| Linear Regression | JS | 70% | ⚡⚡⚡ | Trend analysis |
-| Exp. Smoothing | JS | 72% | ⚡⚡ | General use |
-| ARIMA-Lite | JS | 75% | ⚡⚡ | Pattern recognition |
-| **Ensemble** | JS | **80%** | ⚡⚡ | **Production** |
-| Prophet | Python | 88% | ⚡ | Seasonality |
-| LSTM | Python | 85% | ⚡ | Complex patterns |
-| GARCH | Python | 82% | ⚡⚡ | Volatility |
-| XGBoost | Python | 83% | ⚡ | Short-term |
+## Project structure
 
-**Features**:
+```text
+app/                 Page, root layout, error boundary, query provider
+components/
+  fx/                Page sections: header, pair heading, chart, forecast,
+                     statistics, popular pairs, how it works, footer
+  ui/                Small shared controls (segmented control, switch, series key)
+lib/
+  analysis/          Indicators, summary statistics, chart rows and axis ticks
+  api/               Shared API response helpers
+  client/            Data-fetching hooks and CSV export
+  config/            Pairs, chart ranges and overlays, forecast models, links
+  data/              Frankfurter v2 client
+  forecasting/       Models, back-test and numerical helpers
+  utils/             Maths and date helpers
+pages/api/           API routes
+tests/               Vitest suite, rate fixtures and R reference values
+```
 
-- 95% confidence intervals
-- Backtesting metrics (MAE, accuracy)
-- Automatic fallback to JS if Python unavailable
-- Horizon selection: 7, 14, 30, 60, 90 days
+## Licence
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE)
-file for details.
+MIT. See [LICENSE](LICENSE).

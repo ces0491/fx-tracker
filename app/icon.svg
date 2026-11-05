@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <style>
+    .line { stroke: #13201e; }
+    .fan { fill: #0b6e69; }
+    @media (prefers-color-scheme: dark) {
+      .line { stroke: #e2ebe8; }
+      .fan { fill: #4fb8ae; }
+    }
+  </style>
+  <path class="fan" d="M17 13 L29 4 L29 25 Z" fill-opacity="0.22" />
+  <path class="fan" d="M17 13 L29 8 L29 20 Z" fill-opacity="0.45" />
+  <path class="fan" d="M17 13 L29 11 L29 16 Z" />
+  <path class="line" d="M3 21 L8 16 L12 19 L17 13" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
