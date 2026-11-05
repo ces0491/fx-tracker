@@ -33,7 +33,7 @@ function Result({ query, latest, decimals, unavailable }) {
         <button
           type="button"
           onClick={() => query.refetch()}
-          className="rounded-full border border-border px-3 py-1 font-medium transition-colors hover:border-accent hover:text-accent"
+          className="rounded-md border border-border px-3 py-1 font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Run it again
         </button>
@@ -52,12 +52,16 @@ function Result({ query, latest, decimals, unavailable }) {
         <span className="font-medium tabular-nums">{formatPct(change)}</span>{' '}
         <span className="text-muted">from the latest rate</span>
       </p>
-      <p className="mt-3 text-sm">
-        <span className="text-muted">95% range </span>
-        <span className="font-medium tabular-nums">
+      <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+        <dt className="text-muted">50% range</dt>
+        <dd className="font-medium tabular-nums">
+          {formatRate(end.lower50, decimals)} to {formatRate(end.upper50, decimals)}
+        </dd>
+        <dt className="text-muted">95% range</dt>
+        <dd className="font-medium tabular-nums">
           {formatRate(end.lower, decimals)} to {formatRate(end.upper, decimals)}
-        </span>
-      </p>
+        </dd>
+      </dl>
     </div>
   );
 }
@@ -77,7 +81,7 @@ export default function ForecastPanel({
   const selected = ALGORITHMS.find((a) => a.value === algorithm);
 
   return (
-    <aside aria-labelledby="forecast-heading" className="rounded-2xl border border-border bg-raised p-5 shadow-card">
+    <aside aria-labelledby="forecast-heading" className="rounded-lg border border-border bg-raised p-5 shadow-card">
       <div className="flex items-center justify-between gap-4">
         <h2 id="forecast-heading" className="text-base font-semibold">
           Forecast
@@ -109,13 +113,13 @@ export default function ForecastPanel({
           {ALGORITHMS.map((option) => (
             <label
               key={option.value}
-              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-tint has-[[data-state=checked]]:bg-tint-strong"
+              className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-tint has-[[data-state=checked]]:bg-tint-strong"
             >
               <RadioGroup.Item
                 value={option.value}
-                className="flex size-4 shrink-0 items-center justify-center rounded-full border border-border-strong bg-raised data-[state=checked]:border-accent"
+                className="flex size-4 shrink-0 items-center justify-center rounded-md border border-border-strong bg-raised data-[state=checked]:border-accent"
               >
-                <RadioGroup.Indicator className="block size-2 rounded-full bg-accent" />
+                <RadioGroup.Indicator className="block size-2 rounded-md bg-accent" />
               </RadioGroup.Item>
               {option.label}
             </label>

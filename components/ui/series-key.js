@@ -1,8 +1,18 @@
 /**
  * Small swatch identifying a chart series beside its label: a short line for
- * line series (dashed for projections), a filled block for bands.
+ * line series (dashed for projections), a filled block for bands, and three
+ * nested blocks for the forecast fan.
  */
 export default function SeriesKey({ color, kind = 'line', className = '' }) {
+  if (kind === 'fan') {
+    return (
+      <svg aria-hidden width="16" height="12" viewBox="0 0 16 12" className={`shrink-0 ${className}`}>
+        <rect x="0" y="0" width="16" height="12" rx="2" fill={color} fillOpacity="0.16" />
+        <rect x="0" y="2.5" width="16" height="7" rx="1.5" fill={color} fillOpacity="0.32" />
+        <rect x="0" y="4.5" width="16" height="3" rx="1" fill={color} fillOpacity="0.5" />
+      </svg>
+    );
+  }
   if (kind === 'band') {
     return (
       <span

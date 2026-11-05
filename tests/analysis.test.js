@@ -57,13 +57,19 @@ describe('chart helpers', () => {
     const last = series[series.length - 1];
     const forecast = [
       { date: last.date, rate: 1, lower: 0, upper: 2 },
-      { date: '2026-11-06', rate: 9.3, lower: 9.1, upper: 9.5 },
+      { date: '2026-11-06', rate: 9.3, lower: 9.1, upper: 9.5, lower80: 9.15, upper80: 9.45, lower50: 9.25, upper50: 9.35 },
     ];
     const rows = buildChartRows(series, { range: '1M', forecast });
     const joined = rows.find((r) => r.date === last.date);
     expect(joined.forecast).toBe(last.close);
     expect(rows.filter((r) => r.date === last.date)).toHaveLength(1);
-    expect(rows[rows.length - 1]).toEqual({ date: '2026-11-06', forecast: 9.3, band: [9.1, 9.5] });
+    expect(rows[rows.length - 1]).toEqual({
+      date: '2026-11-06',
+      forecast: 9.3,
+      band: [9.1, 9.5],
+      band80: [9.15, 9.45],
+      band50: [9.25, 9.35],
+    });
   });
 });
 

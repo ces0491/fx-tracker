@@ -1,5 +1,5 @@
-import BrandMark from './BrandMark';
-import { BUILT_URL, CONTACT_URL } from '@/lib/config/site';
+import SheetSolvedMark from './SheetSolvedMark';
+import { BUILT_URL, CONTACT_URL, SITE_URL } from '@/lib/config/site';
 import { RATE_SOURCE } from '@/lib/config/source';
 
 export default function SiteFooter() {
@@ -8,8 +8,11 @@ export default function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="max-w-xl">
-            <BrandMark className="size-8 text-accent" />
-            <h2 className="mt-4 text-xl font-semibold tracking-tight">Built by Sheet Solved</h2>
+            <a href={SITE_URL} className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-foreground">
+              <SheetSolvedMark className="size-5" />
+              Sheet Solved
+            </a>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight">FX Tracker is built by Sheet Solved</h2>
             <p className="mt-2 text-muted">
               I build forecasting models, data pipelines and the applications that put them in front of people. If your
               business runs on numbers like these, tell me what&apos;s not working.
@@ -18,11 +21,11 @@ export default function SiteFooter() {
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <a
               href={CONTACT_URL}
-              className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+              className="rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
             >
               Start a conversation
             </a>
-            <a href={BUILT_URL} className="underline-grow text-sm text-muted hover:text-foreground">
+            <a href={BUILT_URL} className="text-sm text-muted underline decoration-border underline-offset-4 hover:text-foreground">
               See what else I&apos;ve built
             </a>
           </div>
@@ -31,7 +34,7 @@ export default function SiteFooter() {
         <div className="mt-10 space-y-2 border-t border-border pt-6 text-xs leading-relaxed text-muted">
           <p>
             Rates from{' '}
-            <a href={RATE_SOURCE.url} className="underline decoration-hairline underline-offset-2 hover:text-foreground">
+            <a href={RATE_SOURCE.url} className="underline decoration-border underline-offset-2 hover:text-foreground">
               {RATE_SOURCE.name}
             </a>
             : blended daily mid-market rates from central banks and official sources. They are daily, not live.

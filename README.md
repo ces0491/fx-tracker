@@ -24,8 +24,8 @@ currency pairs. Built with Next.js, with rate data from
   observations, annualised at the series' own frequency. Frankfurter's blended
   series is calendar-daily, so that is about 365 observations a year.
 - **Forecasts**: six models over horizons of 7, 14, 30, 60 or 90 days, each
-  fitted to the last 365 daily rates and shown with its 95% prediction
-  interval:
+  fitted to the last 365 daily rates and drawn as a fan of 50%, 80% and 95%
+  prediction intervals:
   - Trend: recent average daily change, fading with a 30-day time constant;
     random-walk interval
   - Linear regression on time, with the textbook prediction interval
@@ -41,7 +41,8 @@ currency pairs. Built with Next.js, with rate data from
   weeks the model is refitted each week on the preceding 365 days, and its
   forecast at the chosen horizon is compared with the rate that followed. The
   page shows the average absolute percentage miss, the same figure for a
-  no-change forecast, and how many actual rates landed inside the 95% range.
+  no-change forecast, and how many actual rates landed inside the 50% and 95%
+  ranges.
 - **Popular pairs**: latest rate, change on the previous day and a 30-day
   sparkline for 18 preset pairs.
 - **Accessibility**: every chart has a table view, controls work from the
@@ -52,7 +53,8 @@ currency pairs. Built with Next.js, with rate data from
 - Next.js 15: App Router for the page, Pages Router for the API routes
 - React 19, Tailwind CSS 4, Recharts, lucide-react
 - Radix UI primitives and cmdk for the controls, TanStack Query for data fetching
-- Colours and type follow sheetsolved.com (Geist, brand navy)
+- Its own look: IBM Plex Sans, ink on cool paper with petrol teal, and a
+  forecast fan as its mark; Sheet Solved appears as the maker credit
 - Hosted on Vercel
 
 ## Getting started
@@ -127,8 +129,18 @@ response, abridged:
   "algorithm": "kalman",
   "horizon": 30,
   "asOf": "2026-11-05",
-  "interval": 0.95,
-  "forecast": [{ "date": "2026-11-06", "rate": 9.2233, "lower": 9.1716, "upper": 9.2754 }],
+  "forecast": [
+    {
+      "date": "2026-11-06",
+      "rate": 9.2233,
+      "lower": 9.1716,
+      "upper": 9.2754,
+      "lower80": 9.1895,
+      "upper80": 9.2573,
+      "lower50": 9.2055,
+      "upper50": 9.2412
+    }
+  ],
   "backtest": {
     "forecasts": 52,
     "firstOrigin": "2025-10-14",
@@ -136,13 +148,18 @@ response, abridged:
     "meanAbsPctError": 2.13,
     "noChangeMeanAbsPctError": 1.75,
     "held": 52,
-    "coverage": 1
+    "coverage": 1,
+    "held50": 30,
+    "coverage50": 0.58
   }
 }
 ```
 
-`backtest` is null when the pair has too little history for 12 weekly
-origins.
+In each forecast point, `lower`/`upper` bound the 95% prediction interval,
+`lower80`/`upper80` the 80% and `lower50`/`upper50` the 50%. `held` and
+`held50` count back-test forecasts whose actual rate fell inside the 95% and
+50% ranges. `backtest` is null when the pair has too little history for 12
+weekly origins.
 
 ## Tests
 

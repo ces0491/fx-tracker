@@ -5,7 +5,7 @@ import { formatIsoDate, formatRate } from '@/lib/format';
 
 function Table({ caption, columns, rows }) {
   return (
-    <div className="max-h-80 overflow-auto rounded-lg border border-border">
+    <div className="max-h-80 overflow-auto rounded-md border border-border">
       <table className="w-full text-sm tabular-nums">
         <caption className="sr-only">{caption}</caption>
         <thead className="sticky top-0 bg-surface text-left text-xs text-muted">
@@ -50,7 +50,7 @@ export default function DataTable({ pair, rows, decimals }) {
     <details className="mt-4 border-t border-border pt-3" onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="cursor-pointer text-sm text-muted hover:text-foreground">Show the chart data as a table</summary>
       {open && (
-        <div className="mt-3 grid gap-4 xl:grid-cols-[3fr_2fr]">
+        <div className="mt-3 grid gap-4 xl:grid-cols-2">
           <Table
             caption={`${pair} daily rates for the selected range, newest first`}
             columns={['Date', 'Rate', '5-day avg', '20-day avg', 'RSI']}
@@ -65,8 +65,15 @@ export default function DataTable({ pair, rows, decimals }) {
           {projected.length > 0 && (
             <Table
               caption={`${pair} forecast`}
-              columns={['Date', 'Forecast', 'Low', 'High']}
-              rows={projected.map((r) => [formatIsoDate(r.date), rate(r.forecast), rate(r.band[0]), rate(r.band[1])])}
+              columns={['Date', 'Forecast', '50% low', '50% high', '95% low', '95% high']}
+              rows={projected.map((r) => [
+                formatIsoDate(r.date),
+                rate(r.forecast),
+                rate(r.band50?.[0]),
+                rate(r.band50?.[1]),
+                rate(r.band[0]),
+                rate(r.band[1]),
+              ])}
             />
           )}
         </div>

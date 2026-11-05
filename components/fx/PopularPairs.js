@@ -103,7 +103,7 @@ export default function PopularPairs({ query, selected, onSelect }) {
           <button
             type="button"
             onClick={() => query.refetch()}
-            className="rounded-full border border-border px-3 py-1 font-medium transition-colors hover:border-accent hover:text-accent"
+            className="rounded-md border border-border px-3 py-1 font-medium transition-colors hover:border-accent hover:text-accent"
           >
             Try again
           </button>

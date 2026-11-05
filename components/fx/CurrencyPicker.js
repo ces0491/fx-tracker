@@ -35,7 +35,7 @@ export default function CurrencyPicker({ value, currencies, onChange, side }) {
           align="start"
           sideOffset={10}
           collisionPadding={16}
-          className="z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-raised text-foreground shadow-card"
+          className="z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-md border border-border bg-raised text-foreground shadow-card"
         >
           <Command loop label={`${side} currency`} defaultValue={selected ? `${selected.code} ${selected.name}` : undefined}>
             <div className="flex items-center gap-2 border-b border-border px-3">

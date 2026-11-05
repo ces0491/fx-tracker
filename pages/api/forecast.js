@@ -57,13 +57,16 @@ export default async function handler(req, res) {
       algorithm,
       horizon,
       asOf: lastDate,
-      interval: 0.95,
       fittedObservations: fitted.length,
       forecast: result.mean.map((rate, i) => ({
         date: formatISODate(addDays(new Date(lastDate), i + 1)),
         rate,
         lower: result.lower[i],
         upper: result.upper[i],
+        lower80: result.intervals[80].lower[i],
+        upper80: result.intervals[80].upper[i],
+        lower50: result.intervals[50].lower[i],
+        upper50: result.intervals[50].upper[i],
       })),
       backtest: record && {
         forecasts: record.forecasts,
@@ -75,6 +78,8 @@ export default async function handler(req, res) {
         noChangeMeanAbsPctError: record.noChangeMeanAbsPctError,
         held: record.held,
         coverage: record.coverage,
+        held50: record.held50,
+        coverage50: record.coverage50,
       },
       source: RATE_SOURCE,
     });

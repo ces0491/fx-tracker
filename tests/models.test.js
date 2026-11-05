@@ -48,6 +48,10 @@ describe('linear regression', () => {
     expectClose(at(forecast.mean), reference.linear_regression.mean, 1e-10);
     expectClose(at(forecast.lower), reference.linear_regression.lower, 1e-8);
     expectClose(at(forecast.upper), reference.linear_regression.upper, 1e-8);
+    expectClose(at(forecast.intervals[80].lower), reference.linear_regression.lower80, 1e-8);
+    expectClose(at(forecast.intervals[80].upper), reference.linear_regression.upper80, 1e-8);
+    expectClose(at(forecast.intervals[50].lower), reference.linear_regression.lower50, 1e-8);
+    expectClose(at(forecast.intervals[50].upper), reference.linear_regression.upper50, 1e-8);
   });
 });
 
@@ -57,6 +61,10 @@ describe('exponential smoothing', () => {
     expectClose(at(forecast.mean), reference.holt.mean, 1e-10);
     expectClose(at(forecast.lower), reference.holt.lower, 1e-10);
     expectClose(at(forecast.upper), reference.holt.upper, 1e-10);
+    expectClose(at(forecast.intervals[80].lower), reference.holt.lower80, 1e-10);
+    expectClose(at(forecast.intervals[80].upper), reference.holt.upper80, 1e-10);
+    expectClose(at(forecast.intervals[50].lower), reference.holt.lower50, 1e-10);
+    expectClose(at(forecast.intervals[50].upper), reference.holt.upper50, 1e-10);
   });
 });
 
@@ -132,9 +140,16 @@ describe('every model', () => {
       expect(first[key].every(Number.isFinite)).toBe(true);
     }
     first.mean.forEach((m, i) => {
-      expect(first.lower[i]).toBeLessThanOrEqual(m);
-      expect(first.upper[i]).toBeGreaterThanOrEqual(m);
+      const { 50: inner, 80: middle, 95: outer } = first.intervals;
+      expect(outer.lower[i]).toBeLessThanOrEqual(middle.lower[i]);
+      expect(middle.lower[i]).toBeLessThanOrEqual(inner.lower[i]);
+      expect(inner.lower[i]).toBeLessThanOrEqual(m);
+      expect(m).toBeLessThanOrEqual(inner.upper[i]);
+      expect(inner.upper[i]).toBeLessThanOrEqual(middle.upper[i]);
+      expect(middle.upper[i]).toBeLessThanOrEqual(outer.upper[i]);
     });
+    expect(first.lower).toEqual(first.intervals[95].lower);
+    expect(first.upper).toEqual(first.intervals[95].upper);
   });
 
   it('rejects too little data and unknown algorithms', () => {

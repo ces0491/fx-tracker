@@ -18,7 +18,7 @@ export default function ErrorPage({ error, reset }) {
         <button
           type="button"
           onClick={reset}
-          className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-contrast transition-opacity hover:opacity-90"
         >
           Reload the tracker
         </button>

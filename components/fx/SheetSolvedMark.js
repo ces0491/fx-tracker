@@ -1,5 +1,5 @@
-/** Sheet Solved mark, as used on sheetsolved.com. */
-export default function BrandMark({ className }) {
+/** Sheet Solved mark, as used on sheetsolved.com, for the maker credit in the footer. */
+export default function SheetSolvedMark({ className }) {
   return (
     <svg
       viewBox="0 0 32 32"

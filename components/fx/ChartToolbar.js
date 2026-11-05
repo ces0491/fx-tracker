@@ -22,7 +22,7 @@ export default function ChartToolbar({ range, onRangeChange, overlays, onOverlay
           <ToggleGroup.Item
             key={overlay.value}
             value={overlay.value}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-raised px-3 py-1 text-sm text-muted transition-colors hover:text-foreground data-[state=on]:border-hairline data-[state=on]:bg-tint-strong data-[state=on]:text-foreground"
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-raised px-3 py-1 text-sm text-muted transition-colors hover:text-foreground data-[state=on]:border-hairline data-[state=on]:bg-tint-strong data-[state=on]:text-foreground"
           >
             <SeriesKey color={overlay.color} kind={overlay.kind} />
             {overlay.label}

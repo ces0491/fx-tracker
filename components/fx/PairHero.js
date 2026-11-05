@@ -16,7 +16,7 @@ export default function PairHero({ base, quote, currencies, stats, status, onBas
   const DirectionIcon = stats && stats.dayChange < 0 ? ArrowDown : ArrowUp;
 
   return (
-    <section className="field" aria-labelledby="pair-heading">
+    <section aria-labelledby="pair-heading">
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-10 sm:px-8 sm:pt-16">
         <h1 id="pair-heading" className="text-sm text-muted sm:text-base">
           {names[base] ?? base} to {names[quote] ?? quote}
@@ -32,7 +32,7 @@ export default function PairHero({ base, quote, currencies, stats, status, onBas
             <span>
               <span
                 aria-hidden
-                className={`inline-block h-[0.78em] w-[3.4em] rounded-lg bg-surface ${status === 'error' ? '' : 'animate-pulse'}`}
+                className={`inline-block h-[0.78em] w-[3.4em] rounded-md bg-surface ${status === 'error' ? '' : 'animate-pulse'}`}
               />
               <span className="sr-only">{status === 'error' ? 'No rate available' : 'Loading rate'}</span>
             </span>
@@ -43,7 +43,7 @@ export default function PairHero({ base, quote, currencies, stats, status, onBas
             onClick={onSwap}
             aria-label={`Swap to ${quote}/${base}`}
             title="Swap currencies"
-            className="ml-[0.1em] self-center rounded-full border border-border bg-raised p-2 text-muted transition-colors hover:border-accent hover:text-accent"
+            className="ml-[0.1em] self-center rounded-md border border-border bg-raised p-2 text-muted transition-colors hover:border-accent hover:text-accent"
           >
             <ArrowLeftRight aria-hidden className="size-5" />
           </button>

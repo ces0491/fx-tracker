@@ -29,17 +29,17 @@ function Legend({ items }) {
 
 export function ChartPanelSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-raised p-5 shadow-card" aria-busy="true">
+    <div className="rounded-lg border border-border bg-raised p-5 shadow-card" aria-busy="true">
       <span className="sr-only">Loading rates</span>
       <div className="h-4 w-48 animate-pulse rounded bg-surface" />
-      <div className="mt-4 animate-pulse rounded-lg bg-surface" style={{ height: CHART_HEIGHT }} />
+      <div className="mt-4 animate-pulse rounded-md bg-surface" style={{ height: CHART_HEIGHT }} />
     </div>
   );
 }
 
 export function ChartPanelError({ pair, message, canRetry, onRetry }) {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-2xl border border-border bg-raised p-6 shadow-card" role="alert">
+    <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-raised p-6 shadow-card" role="alert">
       <AlertTriangle aria-hidden className="size-5 text-danger" />
       <p className="font-medium">Rates for {pair} didn&apos;t load</p>
       <p className="max-w-prose text-sm text-muted">
@@ -49,7 +49,7 @@ export function ChartPanelError({ pair, message, canRetry, onRetry }) {
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
+          className="rounded-md border border-border px-3.5 py-1.5 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
         >
           Try again
         </button>
@@ -89,11 +89,11 @@ export default function ChartPanel({
   );
 
   const legend = [
-    { label: `${pair} daily rate`, color: 'var(--series-rate)', kind: 'line' },
+    { label: `${pair} daily rate`, color: 'var(--series-observed)', kind: 'line' },
     ...(forecast?.length
       ? [
-          { label: `Forecast (${algorithmLabel})`, color: 'var(--series-rate)', kind: 'dashed' },
-          { label: '95% range', color: 'var(--series-rate)', kind: 'band' },
+          { label: `Forecast (${algorithmLabel})`, color: 'var(--series-forecast)', kind: 'dashed' },
+          { label: '50%, 80% and 95% ranges', color: 'var(--series-forecast)', kind: 'fan' },
         ]
       : []),
     ...(overlays.includes('sma5') ? [{ label: '5-day average', color: 'var(--series-short)', kind: 'line' }] : []),
@@ -108,17 +108,17 @@ export default function ChartPanel({
   )}${forecast?.length ? `, with a ${forecast.length}-day forecast` : ''}. The same figures are in the table below the chart.`;
 
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-raised p-4 shadow-card sm:p-5">
-      <div className="flex items-start justify-between gap-4">
+    <div className="min-w-0 rounded-lg border border-border bg-raised p-4 shadow-card sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">
           <Legend items={legend} />
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row-reverse sm:items-center sm:gap-4">
+        <div className="flex shrink-0 items-center gap-4 sm:flex-row-reverse">
           <button
             type="button"
             onClick={onDownload}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-sm text-muted transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-sm text-muted transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download aria-hidden className="size-4" />
             Download CSV

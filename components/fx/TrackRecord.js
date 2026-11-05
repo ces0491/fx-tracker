@@ -33,7 +33,7 @@ export default function TrackRecord({ query, algorithmLabel, horizon, unavailabl
   return (
     <section
       aria-labelledby="track-record-heading"
-      className={cn('rounded-2xl border border-border bg-raised p-4 shadow-card sm:p-5', query.isPlaceholderData && 'opacity-50')}
+      className={cn('rounded-lg border border-border bg-raised p-4 shadow-card sm:p-5', query.isPlaceholderData && 'opacity-50')}
       aria-busy={loading || query.isPlaceholderData}
     >
       <h2 id="track-record-heading" className="text-base font-semibold">
@@ -44,7 +44,7 @@ export default function TrackRecord({ query, algorithmLabel, horizon, unavailabl
         <div className="mt-3 space-y-2">
           <span className="sr-only">Testing the model&apos;s past forecasts</span>
           <div className="h-4 w-3/4 animate-pulse rounded bg-surface" />
-          <div className="h-16 animate-pulse rounded-lg bg-surface" />
+          <div className="h-16 animate-pulse rounded-md bg-surface" />
         </div>
       ) : !record ? (
         <p className="mt-2 text-sm text-muted">
@@ -56,13 +56,18 @@ export default function TrackRecord({ query, algorithmLabel, horizon, unavailabl
             The last {record.forecasts} weekly forecasts, made from {formatIsoDate(record.firstOrigin, DATE)} to{' '}
             {formatIsoDate(record.lastOrigin, DATE)}, set against the rates that followed.
           </p>
-          <dl className="mt-4 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
+          <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-2 xl:grid-cols-4">
             <Figure label="Average miss" value={`${record.meanAbsPctError.toFixed(2)}%`} />
             <Figure label="Assuming no change" value={`${record.noChangeMeanAbsPctError.toFixed(2)}%`} note="Average miss" />
             <Figure
+              label="Inside the 50% range"
+              value={`${record.held50} of ${record.forecasts}`}
+              note={`About ${Math.round(0.5 * record.forecasts)} if calibrated`}
+            />
+            <Figure
               label="Inside the 95% range"
               value={`${record.held} of ${record.forecasts}`}
-              note={`About ${Math.round(0.95 * record.forecasts)} if the range is well calibrated`}
+              note={`About ${Math.round(0.95 * record.forecasts)} if calibrated`}
             />
           </dl>
           <p className="mt-3 text-sm">{verdict(record.meanAbsPctError, record.noChangeMeanAbsPctError)}</p>

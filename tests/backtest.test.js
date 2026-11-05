@@ -12,6 +12,7 @@ describe('backtest', () => {
     expect(result.lastOrigin).toBe(prices.length - 1 - horizon);
     expect(result.lastOrigin - result.firstOrigin).toBe((BACKTEST.ORIGINS - 1) * BACKTEST.STEP);
     expect(result.coverage).toBeCloseTo(result.held / result.forecasts, 12);
+    expect(result.held50).toBeLessThanOrEqual(result.held);
   });
 
   it('scores the no-change baseline from the rate at each origin', () => {

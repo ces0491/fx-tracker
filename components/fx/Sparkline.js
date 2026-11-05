@@ -1,4 +1,4 @@
-/** Small line of a short series; the latest point is marked in the accent colour. */
+/** Small line of a short series; the latest point is marked in the forecast colour. */
 export default function Sparkline({ series, label, width = 96, height = 28 }) {
   if (!series || series.length < 2) return <span className="inline-block" style={{ width, height }} />;
 
@@ -23,7 +23,7 @@ export default function Sparkline({ series, label, width = 96, height = 28 }) {
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      <circle cx={lastX} cy={lastY} r="2.5" fill="var(--series-rate)" />
+      <circle cx={lastX} cy={lastY} r="2.5" fill="var(--series-forecast)" />
     </svg>
   );
 }

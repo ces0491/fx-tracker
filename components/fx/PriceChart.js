@@ -5,7 +5,6 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -19,22 +18,25 @@ const SHORT_DATE = { day: 'numeric', month: 'short' };
 const AXIS_TICK = { fill: 'var(--muted)', fontSize: 12, fontVariantNumeric: 'tabular-nums' };
 export const Y_AXIS_WIDTH = 64;
 
+// Each band of the fan is drawn at the same opacity; where they overlap the
+// shade deepens, so the 50% band is darkest and the 95% band lightest.
+const FAN_OPACITY = 0.16;
+const FAN_BANDS = ['band', 'band80', 'band50'];
+
 function ChartTooltip({ active, payload, label, decimals, overlays }) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   const isForecast = row.close == null && row.forecast != null;
+  const range = (band) => `${formatRate(band[0], decimals)} to ${formatRate(band[1], decimals)}`;
 
   const items = [];
-  if (row.close != null) items.push({ key: 'rate', value: formatRate(row.close, decimals), name: 'Daily rate', color: 'var(--series-rate)' });
+  if (row.close != null) {
+    items.push({ key: 'rate', value: formatRate(row.close, decimals), name: 'Daily rate', color: 'var(--series-observed)' });
+  }
   if (isForecast) {
-    items.push({ key: 'forecast', value: formatRate(row.forecast, decimals), name: 'Forecast', color: 'var(--series-rate)', kind: 'dashed' });
-    items.push({
-      key: 'band',
-      value: `${formatRate(row.band[0], decimals)} to ${formatRate(row.band[1], decimals)}`,
-      name: '95% range',
-      color: 'var(--series-rate)',
-      kind: 'band',
-    });
+    items.push({ key: 'forecast', value: formatRate(row.forecast, decimals), name: 'Forecast', color: 'var(--series-forecast)', kind: 'dashed' });
+    if (row.band50) items.push({ key: 'band50', value: range(row.band50), name: '50% range', color: 'var(--series-forecast)', kind: 'band' });
+    items.push({ key: 'band', value: range(row.band), name: '95% range', color: 'var(--series-forecast)', kind: 'band' });
   }
   if (overlays.includes('sma5') && row.sma5 != null) {
     items.push({ key: 'sma5', value: formatRate(row.sma5, decimals), name: '5-day average', color: 'var(--series-short)' });
@@ -43,20 +45,14 @@ function ChartTooltip({ active, payload, label, decimals, overlays }) {
     items.push({ key: 'sma20', value: formatRate(row.sma20, decimals), name: '20-day average', color: 'var(--series-long)' });
   }
   if (overlays.includes('bollinger') && row.bb) {
-    items.push({
-      key: 'bb',
-      value: `${formatRate(row.bb[0], decimals)} to ${formatRate(row.bb[1], decimals)}`,
-      name: 'Bollinger bands',
-      color: 'var(--series-long)',
-      kind: 'band',
-    });
+    items.push({ key: 'bb', value: range(row.bb), name: 'Bollinger bands', color: 'var(--series-long)', kind: 'band' });
   }
 
   return (
-    <div className="min-w-44 rounded-lg border border-border bg-raised px-3 py-2.5 text-sm shadow-card">
+    <div className="min-w-44 rounded-md border border-border bg-raised px-3 py-2.5 text-sm shadow-card">
       <p className="flex items-center gap-2 text-xs text-muted">
         {formatIsoDate(label)}
-        {isForecast && <span className="rounded bg-tint-strong px-1.5 py-px text-accent">Forecast</span>}
+        {isForecast && <span className="rounded-sm bg-tint-strong px-1.5 py-px text-accent">Forecast</span>}
       </p>
       <ul className="mt-1.5 space-y-1">
         {items.map((item) => (
@@ -72,9 +68,9 @@ function ChartTooltip({ active, payload, label, decimals, overlays }) {
 }
 
 /**
- * Daily rate with optional overlays and the forecast. `rows` come from
- * buildChartRows; the forecast region is shaded so projected values never
- * read as observed ones.
+ * Daily rate with optional overlays, and the forecast as a fan of 50%, 80%
+ * and 95% prediction intervals. `rows` come from buildChartRows; a rule at the
+ * last observed date separates what happened from what the model projects.
  */
 export default function PriceChart({ rows, domain, ticks, tickDecimals, decimals, overlays, stats, lastObservedDate, height }) {
   const lastDate = rows[rows.length - 1]?.date;
@@ -107,18 +103,6 @@ export default function PriceChart({ rows, domain, ticks, tickDecimals, decimals
             width={Y_AXIS_WIDTH}
           />
 
-          {hasForecast && (
-            <ReferenceArea
-              x1={lastObservedDate}
-              x2={lastDate}
-              fill="var(--tint-strong)"
-              fillOpacity={1}
-              stroke="none"
-              ifOverflow="hidden"
-              label={{ value: 'Forecast', position: 'insideTopLeft', fill: 'var(--muted)', fontSize: 12, offset: 10 }}
-            />
-          )}
-
           {overlays.includes('bollinger') && (
             <Area
               dataKey="bb"
@@ -130,15 +114,24 @@ export default function PriceChart({ rows, domain, ticks, tickDecimals, decimals
               isAnimationActive={false}
             />
           )}
+          {hasForecast &&
+            FAN_BANDS.map((key) => (
+              <Area
+                key={key}
+                dataKey={key}
+                type="linear"
+                fill="var(--series-forecast)"
+                fillOpacity={FAN_OPACITY}
+                stroke="none"
+                activeDot={false}
+                isAnimationActive={false}
+              />
+            ))}
           {hasForecast && (
-            <Area
-              dataKey="band"
-              type="linear"
-              fill="var(--series-rate)"
-              fillOpacity={0.14}
-              stroke="none"
-              activeDot={false}
-              isAnimationActive={false}
+            <ReferenceLine
+              x={lastObservedDate}
+              stroke="var(--border-strong)"
+              label={{ value: 'Forecast', position: 'insideTopLeft', fill: 'var(--muted)', fontSize: 12, offset: 8 }}
             />
           )}
 
@@ -170,7 +163,7 @@ export default function PriceChart({ rows, domain, ticks, tickDecimals, decimals
             <Line
               dataKey="forecast"
               type="linear"
-              stroke="var(--series-rate)"
+              stroke="var(--series-forecast)"
               strokeWidth={2}
               strokeDasharray="6 4"
               dot={false}
@@ -181,7 +174,7 @@ export default function PriceChart({ rows, domain, ticks, tickDecimals, decimals
           <Line
             dataKey="close"
             type="linear"
-            stroke="var(--series-rate)"
+            stroke="var(--series-observed)"
             strokeWidth={2}
             strokeLinejoin="round"
             strokeLinecap="round"

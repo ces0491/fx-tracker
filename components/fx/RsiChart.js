@@ -16,7 +16,7 @@ function RsiTooltip({ active, payload, label }) {
   const rsi = payload?.[0]?.payload?.rsi;
   if (!active || rsi == null) return null;
   return (
-    <div className="rounded-lg border border-border bg-raised px-3 py-2 text-sm shadow-card">
+    <div className="rounded-md border border-border bg-raised px-3 py-2 text-sm shadow-card">
       <p className="text-xs text-muted">{formatIsoDate(label)}</p>
       <p className="mt-1">
         <span className="font-semibold tabular-nums">{rsi.toFixed(1)}</span>{' '}
@@ -51,7 +51,7 @@ export default function RsiChart({ rows }) {
             <Line
               dataKey="rsi"
               type="linear"
-              stroke="var(--series-rate)"
+              stroke="var(--series-observed)"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4, stroke: 'var(--surface-raised)', strokeWidth: 2 }}

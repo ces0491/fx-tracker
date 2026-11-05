@@ -28,7 +28,7 @@ export default function StatsStrip({ stats }) {
       <h2 id="stats-heading" className="sr-only">
         Pair statistics
       </h2>
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border shadow-card lg:grid-cols-5">
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border shadow-card lg:grid-cols-5">
         <Stat
           label={`${STAT_WINDOWS.CHANGE}-day change`}
           value={stats ? formatPct(stats.periodChangePct) : '—'}

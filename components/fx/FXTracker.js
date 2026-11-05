@@ -74,11 +74,14 @@ export default function FXTracker({ initialPair }) {
     if (!series || !isCurrent) return;
     const decimals = rateDecimals(series[series.length - 1].close) + 2;
     const n = (v) => (v == null ? '' : v.toFixed(decimals));
-    const rows = series.map((p) => [p.date, n(p.close), n(p.sma5), n(p.sma20), n(p.bbLower), n(p.bbUpper), p.rsi?.toFixed(2) ?? '', '', '', '']);
-    for (const f of forecastPoints ?? []) rows.push([f.date, '', '', '', '', '', '', n(f.rate), n(f.lower), n(f.upper)]);
+    const blanks = (count) => new Array(count).fill('');
+    const rows = series.map((p) => [p.date, n(p.close), n(p.sma5), n(p.sma20), n(p.bbLower), n(p.bbUpper), p.rsi?.toFixed(2) ?? '', ...blanks(7)]);
+    for (const f of forecastPoints ?? []) {
+      rows.push([f.date, ...blanks(6), n(f.rate), n(f.lower50), n(f.upper50), n(f.lower80), n(f.upper80), n(f.lower), n(f.upper)]);
+    }
     downloadCsv(
       `${pair.replace('/', '-')}_daily_rates.csv`,
-      ['date', 'rate', 'sma_5', 'sma_20', 'bollinger_lower', 'bollinger_upper', 'rsi_14', `forecast_${algorithm}`, 'forecast_lower', 'forecast_upper'],
+      ['date', 'rate', 'sma_5', 'sma_20', 'bollinger_lower', 'bollinger_upper', 'rsi_14', `forecast_${algorithm}`, 'lower_50', 'upper_50', 'lower_80', 'upper_80', 'lower_95', 'upper_95'],
       rows
     );
   };
