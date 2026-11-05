@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Newspaper, BarChart3, Globe, Activity, Target, Shield, Edit3, Check, X, AlertTriangle, Maximize, Minimize, HelpCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, BarChart3, Globe, Activity, Target, Shield, Edit3, Check, X, AlertTriangle, Maximize, Minimize, HelpCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { DEFAULT_PAIR, POPULAR_PAIRS } from '../lib/config/pairs.js';
 import { RATE_SOURCE } from '../lib/config/source.js';
@@ -34,17 +34,12 @@ const FXTracker = () => {
   const [baseCurrency, setBaseCurrency] = useState(DEFAULT_BASE);
   const [quoteCurrency, setQuoteCurrency] = useState(DEFAULT_QUOTE);
   const [forecast, setForecast] = useState(null);
-  const [news, setNews] = useState([]);
-  const [newsEnhanced, setNewsEnhanced] = useState(false);
-  const [upcomingEvents, setUpcomingEvents] = useState([]);
 
   // Loading and error states
   const [loadingState, setLoadingState] = useState({
     currencies: 'idle',
     rates: 'idle',
-    historical: 'idle',
-    news: 'idle',
-    events: 'idle'
+    historical: 'idle'
   });
   const [errors, setErrors] = useState({});
 
@@ -325,61 +320,6 @@ const FXTracker = () => {
     
     return enhanced;
   }, [CONFIG.INDICATORS]);
-
-  // Fetch real news from API
-  const fetchNews = useCallback(async () => {
-    setLoadingState(prev => ({ ...prev, news: 'loading' }));
-    try {
-      const params = new URLSearchParams({ base: baseCurrency, quote: quoteCurrency });
-      const response = await fetch(`/api/news?${params}`);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      setNews(data.news || []);
-      setNewsEnhanced(data.enhanced || false);
-      setLoadingState(prev => ({ ...prev, news: 'success' }));
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.news;
-        return newErrors;
-      });
-    } catch (error) {
-      console.error('Failed to fetch news:', error);
-      setLoadingState(prev => ({ ...prev, news: 'error' }));
-      setErrors(prev => ({ ...prev, news: `Failed to fetch news: ${error.message}` }));
-    }
-  }, [baseCurrency, quoteCurrency]);
-
-  const fetchEvents = useCallback(async () => {
-    setLoadingState(prev => ({ ...prev, events: 'loading' }));
-    try {
-      const response = await fetch('/api/events');
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      setUpcomingEvents(data.events || []);
-      setLoadingState(prev => ({ ...prev, events: 'success' }));
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.events;
-        return newErrors;
-      });
-    } catch (error) {
-      console.error('Failed to fetch events:', error);
-      setLoadingState(prev => ({ ...prev, events: 'error' }));
-      setErrors(prev => ({ ...prev, events: `Failed to fetch events: ${error.message}` }));
-    }
-  }, []);
 
   // Calculate chart domain
   const calculateChartDomain = useCallback((data) => {
@@ -777,14 +717,8 @@ const FXTracker = () => {
       case 'historical':
         fetchHistoricalData(selectedPair);
         break;
-      case 'news':
-        fetchNews();
-        break;
-      case 'events':
-        fetchEvents();
-        break;
     }
-  }, [fetchCurrencies, fetchRates, fetchHistoricalData, selectedPair, fetchNews, fetchEvents]);
+  }, [fetchCurrencies, fetchRates, fetchHistoricalData, selectedPair]);
 
   // Export data
   const exportData = useCallback(() => {
@@ -856,9 +790,7 @@ const FXTracker = () => {
   useEffect(() => {
     fetchCurrencies();
     fetchRates();
-    fetchNews();
-    fetchEvents();
-  }, [fetchCurrencies, fetchRates, fetchNews, fetchEvents]);
+  }, [fetchCurrencies, fetchRates]);
 
   // Fetch historical data when pair changes
   useEffect(() => {
@@ -876,7 +808,7 @@ const FXTracker = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-3">
               <Globe className="h-8 w-8 text-blue-600" />
@@ -900,731 +832,651 @@ const FXTracker = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            {/* Currency Pair Selector */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <Globe className="h-5 w-5 mr-2" />
-                Currency Pair Selection
-              </h2>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Currency Pair Selector */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <Globe className="h-5 w-5 mr-2" />
+            Currency Pair Selection
+          </h2>
 
-              {loadingState.currencies === 'error' ? (
-                <div className="text-center py-8">
-                  <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-600" />
-                  <p className="text-red-600 font-medium mb-2">Unable to load the currency list</p>
-                  <p className="text-sm text-gray-600 mb-4">{errors.currencies}</p>
-                  <button
-                    onClick={() => manualRetry('currencies')}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <RefreshCw className="h-4 w-4 inline mr-2" />
-                    Retry
-                  </button>
-                </div>
-              ) : loadingState.currencies !== 'success' ? (
-                <LoadingIndicator type="currencies" label="Loading currencies..." />
-              ) : (
+          {loadingState.currencies === 'error' ? (
+            <div className="text-center py-8">
+              <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-600" />
+              <p className="text-red-600 font-medium mb-2">Unable to load the currency list</p>
+              <p className="text-sm text-gray-600 mb-4">{errors.currencies}</p>
+              <button
+                onClick={() => manualRetry('currencies')}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 inline mr-2" />
+                Retry
+              </button>
+            </div>
+          ) : loadingState.currencies !== 'success' ? (
+            <LoadingIndicator type="currencies" label="Loading currencies..." />
+          ) : (
+            <>
+              {!manualInputMode ? (
                 <>
-                  {!manualInputMode ? (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end mb-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-800 mb-2">Base Currency</label>
-                          <select
-                            value={baseCurrency}
-                            onChange={(e) => {
-                              const base = e.target.value;
-                              // Picking the current quote as base swaps the pair
-                              handlePairChange(base, base === quoteCurrency ? baseCurrency : quoteCurrency);
-                            }}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-semibold"
-                          >
-                            {currencyList.map(({ code, name }) => (
-                              <option key={code} value={code}>
-                                {code} - {name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 mb-2">Base Currency</label>
+                      <select
+                        value={baseCurrency}
+                        onChange={(e) => {
+                          const base = e.target.value;
+                          // Picking the current quote as base swaps the pair
+                          handlePairChange(base, base === quoteCurrency ? baseCurrency : quoteCurrency);
+                        }}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-semibold"
+                      >
+                        {currencyList.map(({ code, name }) => (
+                          <option key={code} value={code}>
+                            {code} - {name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-800 mb-2">Quote Currency</label>
-                          <select
-                            value={quoteCurrency}
-                            onChange={(e) => handlePairChange(baseCurrency, e.target.value)}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-semibold"
-                          >
-                            {currencyList.filter(({ code }) => code !== baseCurrency).map(({ code, name }) => (
-                              <option key={code} value={code}>
-                                {code} - {name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 mb-2">Quote Currency</label>
+                      <select
+                        value={quoteCurrency}
+                        onChange={(e) => handlePairChange(baseCurrency, e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-semibold"
+                      >
+                        {currencyList.filter(({ code }) => code !== baseCurrency).map(({ code, name }) => (
+                          <option key={code} value={code}>
+                            {code} - {name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-blue-600 transition-all duration-300">
-                            {formatRate(latestPoint?.close)}
-                          </div>
-                          <div className={`text-sm font-medium transition-colors duration-200 ${getChangeColor(getCurrentChange(selectedPair))}`}>
-                            {getCurrentChange(selectedPair) && !isNaN(getCurrentChange(selectedPair)) ?
-                              (getCurrentChange(selectedPair) > 0 ? '+' : '') + getCurrentChange(selectedPair).toFixed(3) + '%' : '--'}
-                          </div>
-                          {latestPoint && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              as of {formatIsoDate(latestPoint.date, { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </div>
-                          )}
-                        </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-blue-600 transition-all duration-300">
+                        {formatRate(latestPoint?.close)}
                       </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <button
-                          onClick={() => setManualInputMode(true)}
-                          className="flex items-center px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        >
-                          <Edit3 className="h-4 w-4 mr-2" />
-                          Enter Custom Currency
-                        </button>
+                      <div className={`text-sm font-medium transition-colors duration-200 ${getChangeColor(getCurrentChange(selectedPair))}`}>
+                        {getCurrentChange(selectedPair) && !isNaN(getCurrentChange(selectedPair)) ?
+                          (getCurrentChange(selectedPair) > 0 ? '+' : '') + getCurrentChange(selectedPair).toFixed(3) + '%' : '--'}
                       </div>
-                    </>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-800 mb-2">
-                            Base Currency Code
-                          </label>
-                          <input
-                            type="text"
-                            value={manualBaseCurrency}
-                            onChange={(e) => setManualBaseCurrency(e.target.value.toUpperCase())}
-                            placeholder="e.g., KES"
-                            maxLength={3}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-800 mb-2">
-                            Quote Currency Code
-                          </label>
-                          <input
-                            type="text"
-                            value={manualQuoteCurrency}
-                            onChange={(e) => setManualQuoteCurrency(e.target.value.toUpperCase())}
-                            placeholder="e.g., USD"
-                            maxLength={3}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono"
-                          />
-                        </div>
-                      </div>
-                      
-                      {customCurrencyError && (
-                        <div className="text-red-600 text-sm font-medium">
-                          {customCurrencyError}
+                      {latestPoint && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          as of {formatIsoDate(latestPoint.date, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
                       )}
-                      
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={handleManualCurrencySubmit}
-                          disabled={!manualBaseCurrency || !manualQuoteCurrency}
-                          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          Apply Custom Pair
-                        </button>
-                        
-                        <button
-                          onClick={cancelManualInput}
-                          className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          <X className="h-4 w-4 mr-2" />
-                          Cancel
-                        </button>
-                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setManualInputMode(true)}
+                      className="flex items-center px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Enter Custom Currency
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 mb-2">
+                        Base Currency Code
+                      </label>
+                      <input
+                        type="text"
+                        value={manualBaseCurrency}
+                        onChange={(e) => setManualBaseCurrency(e.target.value.toUpperCase())}
+                        placeholder="e.g., KES"
+                        maxLength={3}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800 mb-2">
+                        Quote Currency Code
+                      </label>
+                      <input
+                        type="text"
+                        value={manualQuoteCurrency}
+                        onChange={(e) => setManualQuoteCurrency(e.target.value.toUpperCase())}
+                        placeholder="e.g., USD"
+                        maxLength={3}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono"
+                      />
+                    </div>
+                  </div>
+                  
+                  {customCurrencyError && (
+                    <div className="text-red-600 text-sm font-medium">
+                      {customCurrencyError}
                     </div>
                   )}
-                </>
+                  
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleManualCurrencySubmit}
+                      disabled={!manualBaseCurrency || !manualQuoteCurrency}
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Apply Custom Pair
+                    </button>
+                    
+                    <button
+                      onClick={cancelManualInput}
+                      className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
+            </>
+          )}
+        </div>
+
+        {/* Charts Section */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <Activity className="h-5 w-5 mr-2" />
+              {selectedPair} - Daily Rate Analysis
+            </h2>
+            {historicalData[selectedPair] && (
+              <button
+                onClick={exportData}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm transition-colors"
+              >
+                Export Data
+              </button>
+            )}
+          </div>
+
+          {loadingState.historical === 'loading' ? (
+            <LoadingIndicator type="historical" label="Fetching historical data from API..." />
+          ) : loadingState.historical === 'error' ? (
+            <div className="text-center py-12">
+              <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-600" />
+              <p className="text-red-600 font-medium mb-2">Unable to load historical data</p>
+              <p className="text-sm text-gray-600 mb-4">{errors.historical}</p>
+              <button
+                onClick={() => manualRetry('historical')}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 inline mr-2" />
+                Retry API Call
+              </button>
             </div>
+          ) : historicalData[selectedPair] ? (
+            <div className="space-y-8">
+              {/* Historical Price Chart */}
+              <div className={isChartFullscreen ? 'fixed inset-0 z-50 bg-white p-6' : ''}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Price Analysis
+                  </h3>
 
-            {/* Charts Section */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <Activity className="h-5 w-5 mr-2" />
-                  {selectedPair} - Daily Rate Analysis
-                </h2>
-                {historicalData[selectedPair] && (
+                  {/* Date Range Selection & Fullscreen Button */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-gray-700">From:</label>
+                      <input
+                        type="date"
+                        value={dateRange.start}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                        min={historicalData[selectedPair] && historicalData[selectedPair].length > 0
+                          ? historicalData[selectedPair][0].date
+                          : undefined}
+                        max={dateRange.end}
+                        className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 font-medium"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-gray-700">To:</label>
+                      <input
+                        type="date"
+                        value={dateRange.end}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                        min={dateRange.start}
+                        max={historicalData[selectedPair] && historicalData[selectedPair].length > 0
+                          ? historicalData[selectedPair][historicalData[selectedPair].length - 1].date
+                          : new Date().toISOString().split('T')[0]}
+                        className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 font-medium"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setIsChartFullscreen(!isChartFullscreen)}
+                      className="px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm flex items-center"
+                      title={isChartFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
+                    >
+                      {isChartFullscreen ? (
+                        <Minimize className="h-4 w-4" />
+                      ) : (
+                        <Maximize className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Date Range Buttons */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm font-medium text-gray-700">Quick Select:</span>
                   <button
-                    onClick={exportData}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm transition-colors"
+                    onClick={() => setQuickDateRange(1)}
+                    className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                   >
-                    Export Data
+                    1M
                   </button>
-                )}
-              </div>
-
-              {loadingState.historical === 'loading' ? (
-                <LoadingIndicator type="historical" label="Fetching historical data from API..." />
-              ) : loadingState.historical === 'error' ? (
-                <div className="text-center py-12">
-                  <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-600" />
-                  <p className="text-red-600 font-medium mb-2">Unable to load historical data</p>
-                  <p className="text-sm text-gray-600 mb-4">{errors.historical}</p>
                   <button
-                    onClick={() => manualRetry('historical')}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    onClick={() => setQuickDateRange(3)}
+                    className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
                   >
-                    <RefreshCw className="h-4 w-4 inline mr-2" />
-                    Retry API Call
+                    3M
+                  </button>
+                  <button
+                    onClick={() => setQuickDateRange(6)}
+                    className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    6M
+                  </button>
+                  <button
+                    onClick={() => setQuickDateRange(12)}
+                    className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    12M
+                  </button>
+                  <button
+                    onClick={() => setQuickDateRange('ytd')}
+                    className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    YTD
                   </button>
                 </div>
-              ) : historicalData[selectedPair] ? (
-                <div className="space-y-8">
-                  {/* Historical Price Chart */}
-                  <div className={isChartFullscreen ? 'fixed inset-0 z-50 bg-white p-6' : ''}>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                        <BarChart3 className="h-4 w-4 mr-2" />
-                        Price Analysis
+
+                <div style={{ height: isChartFullscreen ? 'calc(100vh - 120px)' : CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
+                  <HistoricalPriceChart data={prepareCombinedChartData()} />
+                </div>
+
+                {/* Technical Indicators */}
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">Indicators:</span>
+                  <button
+                    onClick={() => setIndicators(prev => ({ ...prev, sma5: !prev.sma5 }))}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      indicators.sma5
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    5-Day SMA
+                  </button>
+                  <button
+                    onClick={() => setIndicators(prev => ({ ...prev, sma20: !prev.sma20 }))}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      indicators.sma20
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    20-Day SMA
+                  </button>
+                  <button
+                    onClick={() => setIndicators(prev => ({ ...prev, bollinger: !prev.bollinger }))}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      indicators.bollinger
+                        ? 'bg-orange-600 text-white hover:bg-orange-700'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Bollinger Bands
+                  </button>
+                  <button
+                    onClick={() => setIndicators(prev => ({ ...prev, rsi: !prev.rsi }))}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      indicators.rsi
+                        ? 'bg-purple-600 text-white hover:bg-purple-700'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    RSI
+                  </button>
+                  <button
+                    onClick={() => setIndicators(prev => ({ ...prev, supportResistance: !prev.supportResistance }))}
+                    className={`px-3 py-1 text-xs rounded-lg transition-colors ${
+                      indicators.supportResistance
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Support/Resistance
+                  </button>
+                </div>
+              </div>
+
+              {/* Forecast Settings & Chart */}
+              {historicalData[selectedPair] && (
+                <div className="mt-6 bg-purple-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <Target className="h-5 w-5 mr-2" />
+                        Price Forecast Settings
                       </h3>
-
-                      {/* Date Range Selection & Fullscreen Button */}
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium text-gray-700">From:</label>
-                          <input
-                            type="date"
-                            value={dateRange.start}
-                            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                            min={historicalData[selectedPair] && historicalData[selectedPair].length > 0
-                              ? historicalData[selectedPair][0].date
-                              : undefined}
-                            max={dateRange.end}
-                            className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 font-medium"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <label className="text-sm font-medium text-gray-700">To:</label>
-                          <input
-                            type="date"
-                            value={dateRange.end}
-                            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                            min={dateRange.start}
-                            max={historicalData[selectedPair] && historicalData[selectedPair].length > 0
-                              ? historicalData[selectedPair][historicalData[selectedPair].length - 1].date
-                              : new Date().toISOString().split('T')[0]}
-                            className="px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 font-medium"
-                          />
-                        </div>
-                        <button
-                          onClick={() => setIsChartFullscreen(!isChartFullscreen)}
-                          className="px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm flex items-center"
-                          title={isChartFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
-                        >
-                          {isChartFullscreen ? (
-                            <Minimize className="h-4 w-4" />
-                          ) : (
-                            <Maximize className="h-4 w-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Quick Date Range Buttons */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-sm font-medium text-gray-700">Quick Select:</span>
                       <button
-                        onClick={() => setQuickDateRange(1)}
-                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                        onClick={() => setShowHelp(true)}
+                        className="ml-2 p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-100 rounded-full transition-colors"
+                        title="Help"
                       >
-                        1M
-                      </button>
-                      <button
-                        onClick={() => setQuickDateRange(3)}
-                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                      >
-                        3M
-                      </button>
-                      <button
-                        onClick={() => setQuickDateRange(6)}
-                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                      >
-                        6M
-                      </button>
-                      <button
-                        onClick={() => setQuickDateRange(12)}
-                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                      >
-                        12M
-                      </button>
-                      <button
-                        onClick={() => setQuickDateRange('ytd')}
-                        className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                      >
-                        YTD
+                        <HelpCircle className="h-5 w-5" />
                       </button>
                     </div>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showForecast}
+                        onChange={(e) => setShowForecast(e.target.checked)}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Show Forecast</span>
+                    </label>
+                  </div>
 
-                    <div style={{ height: isChartFullscreen ? 'calc(100vh - 120px)' : CONFIG.CHART_HEIGHT.main, minHeight: CONFIG.CHART_HEIGHT.main }}>
-                      <HistoricalPriceChart data={prepareCombinedChartData()} />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {/* Algorithm Selector */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Algorithm
+                      </label>
+                      <select
+                        value={forecastAlgorithm}
+                        onChange={(e) => setForecastAlgorithm(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 font-medium"
+                      >
+                        <option value="trend">Trend-Based</option>
+                        <option value="linear_regression">Linear Regression</option>
+                        <option value="exponential_smoothing">Exponential Smoothing</option>
+                        <option value="arima_lite">ARIMA-Lite</option>
+                        <option value="kalman">Kalman Filter</option>
+                        <option value="ensemble">Ensemble (Recommended)</option>
+                      </select>
                     </div>
 
-                    {/* Technical Indicators */}
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-700">Indicators:</span>
-                      <button
-                        onClick={() => setIndicators(prev => ({ ...prev, sma5: !prev.sma5 }))}
-                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                          indicators.sma5
-                            ? 'bg-green-600 text-white hover:bg-green-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
+                    {/* Forecast Days */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Forecast Horizon
+                      </label>
+                      <select
+                        value={forecastDays}
+                        onChange={(e) => setForecastDays(Number(e.target.value))}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 font-medium"
                       >
-                        5-Day SMA
-                      </button>
+                        <option value={7}>7 Days</option>
+                        <option value={14}>14 Days</option>
+                        <option value={30}>30 Days</option>
+                        <option value={60}>60 Days</option>
+                        <option value={90}>90 Days</option>
+                      </select>
+                    </div>
+
+                    {/* Regenerate Button */}
+                    <div className="flex items-end">
                       <button
-                        onClick={() => setIndicators(prev => ({ ...prev, sma20: !prev.sma20 }))}
-                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                          indicators.sma20
-                            ? 'bg-red-600 text-white hover:bg-red-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
+                        onClick={() => fetchHistoricalData(selectedPair)}
+                        disabled={loadingState.historical === 'loading'}
+                        className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center"
                       >
-                        20-Day SMA
-                      </button>
-                      <button
-                        onClick={() => setIndicators(prev => ({ ...prev, bollinger: !prev.bollinger }))}
-                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                          indicators.bollinger
-                            ? 'bg-orange-600 text-white hover:bg-orange-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        Bollinger Bands
-                      </button>
-                      <button
-                        onClick={() => setIndicators(prev => ({ ...prev, rsi: !prev.rsi }))}
-                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                          indicators.rsi
-                            ? 'bg-purple-600 text-white hover:bg-purple-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        RSI
-                      </button>
-                      <button
-                        onClick={() => setIndicators(prev => ({ ...prev, supportResistance: !prev.supportResistance }))}
-                        className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                          indicators.supportResistance
-                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        Support/Resistance
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loadingState.historical === 'loading' ? 'animate-spin' : ''}`} />
+                        Regenerate
                       </button>
                     </div>
                   </div>
 
-                  {/* Forecast Settings & Chart */}
-                  {historicalData[selectedPair] && (
-                    <div className="mt-6 bg-purple-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center">
-                          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                            <Target className="h-5 w-5 mr-2" />
-                            Price Forecast Settings
-                          </h3>
-                          <button
-                            onClick={() => setShowHelp(true)}
-                            className="ml-2 p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-100 rounded-full transition-colors"
-                            title="Help"
-                          >
-                            <HelpCircle className="h-5 w-5" />
-                          </button>
-                        </div>
-                        <label className="flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showForecast}
-                            onChange={(e) => setShowForecast(e.target.checked)}
-                            className="mr-2 h-4 w-4"
-                          />
-                          <span className="text-sm font-medium text-gray-700">Show Forecast</span>
-                        </label>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        {/* Algorithm Selector */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Algorithm
-                          </label>
-                          <select
-                            value={forecastAlgorithm}
-                            onChange={(e) => setForecastAlgorithm(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 font-medium"
-                          >
-                            <option value="trend">Trend-Based</option>
-                            <option value="linear_regression">Linear Regression</option>
-                            <option value="exponential_smoothing">Exponential Smoothing</option>
-                            <option value="arima_lite">ARIMA-Lite</option>
-                            <option value="kalman">Kalman Filter</option>
-                            <option value="ensemble">Ensemble (Recommended)</option>
-                          </select>
-                        </div>
-
-                        {/* Forecast Days */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Forecast Horizon
-                          </label>
-                          <select
-                            value={forecastDays}
-                            onChange={(e) => setForecastDays(Number(e.target.value))}
-                            className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 font-medium"
-                          >
-                            <option value={7}>7 Days</option>
-                            <option value={14}>14 Days</option>
-                            <option value={30}>30 Days</option>
-                            <option value={60}>60 Days</option>
-                            <option value={90}>90 Days</option>
-                          </select>
-                        </div>
-
-                        {/* Regenerate Button */}
-                        <div className="flex items-end">
-                          <button
-                            onClick={() => fetchHistoricalData(selectedPair)}
-                            disabled={loadingState.historical === 'loading'}
-                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center"
-                          >
-                            <RefreshCw className={`h-4 w-4 mr-2 ${loadingState.historical === 'loading' ? 'animate-spin' : ''}`} />
-                            Regenerate
-                          </button>
-                        </div>
-                      </div>
-
-                      {forecast?.[selectedPair]?.forecastError && (
-                        <div className="mb-3 p-3 rounded-lg bg-red-50 text-sm text-red-700 flex items-start">
-                          <AlertTriangle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
-                          Forecast unavailable: {forecast[selectedPair].forecastError}
-                        </div>
-                      )}
-
-                      {/* Algorithm Info */}
-                      {forecast && forecast[selectedPair] && !forecast[selectedPair].forecastError && (
-                        <div className="grid grid-cols-4 gap-2 text-sm">
-                          <div className="bg-white p-2 rounded">
-                            <span className="text-gray-700 font-medium">Algorithm:</span>
-                            <span className="font-semibold ml-1 text-gray-900">{forecast[selectedPair].algorithm}</span>
-                          </div>
-                          <div className="bg-white p-2 rounded">
-                            <span className="text-gray-700 font-medium">Training Data:</span>
-                            <span className="font-semibold ml-1 text-gray-900">{historicalData[selectedPair]?.length || 0} daily rates</span>
-                          </div>
-                          <div className="bg-white p-2 rounded">
-                            <span className="text-gray-700 font-medium">Confidence:</span>
-                            <span className="font-semibold ml-1 text-gray-900">{(forecast[selectedPair].confidence * 100).toFixed(1)}%</span>
-                          </div>
-                          <div className="bg-white p-2 rounded">
-                            <span className="text-gray-700 font-medium">Accuracy:</span>
-                            <span className="font-semibold ml-1 text-gray-900">{(forecast[selectedPair].accuracy * 100).toFixed(1)}%</span>
-                          </div>
-                        </div>
-                      )}
+                  {forecast?.[selectedPair]?.forecastError && (
+                    <div className="mb-3 p-3 rounded-lg bg-red-50 text-sm text-red-700 flex items-start">
+                      <AlertTriangle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                      Forecast unavailable: {forecast[selectedPair].forecastError}
                     </div>
                   )}
 
-                  {/* RSI Chart */}
-                  {indicators.rsi && (
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-3">
-                        RSI ({CONFIG.INDICATORS.RSI_PERIOD}-period) Momentum Indicator
-                      </h3>
-                      <div style={{ height: CONFIG.CHART_HEIGHT.rsi, minHeight: CONFIG.CHART_HEIGHT.rsi }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={prepareCombinedChartData().filter(item => item.type === 'historical')}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis 
-                              dataKey="date" 
-                              tickFormatter={formatDateForChart}
-                              stroke="#374151"
-                              tick={{ fontSize: 12, fontWeight: 500 }}
-                            />
-                            <YAxis 
-                              domain={[0, 100]}
-                              stroke="#374151"
-                              tick={{ fontSize: 12, fontWeight: 500 }}
-                              tickCount={6}
-                            />
-                            <Tooltip 
-                              content={({ active, payload, label }) => {
-                                if (active && payload && payload.length) {
-                                  return (
-                                    <div className="bg-white p-3 border-2 border-gray-400 rounded-lg shadow-xl">
-                                      <p className="font-bold text-gray-900">{formatDateForChart(label)}</p>
-                                      <p className="text-purple-700 font-bold">
-                                        RSI: {payload[0].value ? payload[0].value.toFixed(2) : '--'}
-                                      </p>
-                                      <p className="text-xs text-gray-800 mt-1 font-semibold">
-                                        {payload[0].value > 70 ? 'Overbought' : 
-                                         payload[0].value < 30 ? 'Oversold' : 'Neutral'}
-                                      </p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                            <Line 
-                              type="monotone" 
-                              dataKey="rsi" 
-                              stroke="#7c2d12" 
-                              strokeWidth={3}
-                              dot={false}
-                              name="RSI"
-                            />
-                            <ReferenceLine y={CONFIG.RSI.OVERBOUGHT} stroke="#dc2626" strokeWidth={2} strokeDasharray="3 3" label="Overbought (70)" />
-                            <ReferenceLine y={CONFIG.RSI.OVERSOLD} stroke="#059669" strokeWidth={2} strokeDasharray="3 3" label="Oversold (30)" />
-                            <ReferenceLine y={CONFIG.RSI.NEUTRAL} stroke="#6b7280" strokeWidth={1} strokeDasharray="2 2" label="Neutral (50)" />
-                          </LineChart>
-                        </ResponsiveContainer>
+                  {/* Algorithm Info */}
+                  {forecast && forecast[selectedPair] && !forecast[selectedPair].forecastError && (
+                    <div className="grid grid-cols-4 gap-2 text-sm">
+                      <div className="bg-white p-2 rounded">
+                        <span className="text-gray-700 font-medium">Algorithm:</span>
+                        <span className="font-semibold ml-1 text-gray-900">{forecast[selectedPair].algorithm}</span>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Technical Summary */}
-                  {forecast && forecast[selectedPair] && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Signal Strength</h4>
-                        <div className={`text-lg font-bold ${
-                          forecast[selectedPair].trend === 'bullish' ? 'text-green-600' :
-                          forecast[selectedPair].trend === 'bearish' ? 'text-red-600' : 'text-gray-600'
-                        }`}>
-                          {forecast[selectedPair].trend.toUpperCase()}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {forecast[selectedPair].strength} signal
-                        </div>
+                      <div className="bg-white p-2 rounded">
+                        <span className="text-gray-700 font-medium">Training Data:</span>
+                        <span className="font-semibold ml-1 text-gray-900">{historicalData[selectedPair]?.length || 0} daily rates</span>
                       </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">RSI ({CONFIG.INDICATORS.RSI_PERIOD})</h4>
-                        <div className={`text-lg font-bold ${
-                          forecast[selectedPair].rsi > CONFIG.RSI.OVERBOUGHT ? 'text-red-600' :
-                          forecast[selectedPair].rsi < CONFIG.RSI.OVERSOLD ? 'text-green-600' : 'text-gray-600'
-                        }`}>
-                          {forecast[selectedPair].rsi ? forecast[selectedPair].rsi.toFixed(1) : '--'}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {forecast[selectedPair].rsi > CONFIG.RSI.OVERBOUGHT ? 'Overbought Zone' :
-                           forecast[selectedPair].rsi < CONFIG.RSI.OVERSOLD ? 'Oversold Zone' : 'Neutral Zone'}
-                        </div>
+                      <div className="bg-white p-2 rounded">
+                        <span className="text-gray-700 font-medium">Confidence:</span>
+                        <span className="font-semibold ml-1 text-gray-900">{(forecast[selectedPair].confidence * 100).toFixed(1)}%</span>
                       </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Support/Resistance</h4>
-                        <div className="text-sm space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Resistance:</span>
-                            <span className="font-medium text-red-600">
-                              {formatRate(forecast[selectedPair].resistance)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Support:</span>
-                            <span className="font-medium text-green-600">
-                              {formatRate(forecast[selectedPair].support)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">Volatility</h4>
-                        <div className="text-lg font-bold text-gray-900">
-                          {forecast[selectedPair].volatility ? (forecast[selectedPair].volatility * 100).toFixed(1) + '%' : '--'}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {forecast[selectedPair].volatility > CONFIG.VOLATILITY.HIGH ? 'High Risk' :
-                           forecast[selectedPair].volatility > CONFIG.VOLATILITY.MEDIUM ? 'Medium Risk' : 'Low Risk'}
-                        </div>
+                      <div className="bg-white p-2 rounded">
+                        <span className="text-gray-700 font-medium">Accuracy:</span>
+                        <span className="font-semibold ml-1 text-gray-900">{(forecast[selectedPair].accuracy * 100).toFixed(1)}%</span>
                       </div>
                     </div>
                   )}
                 </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="h-8 w-8 mx-auto mb-4 bg-gray-300 rounded animate-pulse"></div>
-                  <p className="text-sm text-gray-500">Select a currency pair to view analysis</p>
+              )}
+
+              {/* RSI Chart */}
+              {indicators.rsi && (
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">
+                    RSI ({CONFIG.INDICATORS.RSI_PERIOD}-period) Momentum Indicator
+                  </h3>
+                  <div style={{ height: CONFIG.CHART_HEIGHT.rsi, minHeight: CONFIG.CHART_HEIGHT.rsi }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={prepareCombinedChartData().filter(item => item.type === 'historical')}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis 
+                          dataKey="date" 
+                          tickFormatter={formatDateForChart}
+                          stroke="#374151"
+                          tick={{ fontSize: 12, fontWeight: 500 }}
+                        />
+                        <YAxis 
+                          domain={[0, 100]}
+                          stroke="#374151"
+                          tick={{ fontSize: 12, fontWeight: 500 }}
+                          tickCount={6}
+                        />
+                        <Tooltip 
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-white p-3 border-2 border-gray-400 rounded-lg shadow-xl">
+                                  <p className="font-bold text-gray-900">{formatDateForChart(label)}</p>
+                                  <p className="text-purple-700 font-bold">
+                                    RSI: {payload[0].value ? payload[0].value.toFixed(2) : '--'}
+                                  </p>
+                                  <p className="text-xs text-gray-800 mt-1 font-semibold">
+                                    {payload[0].value > 70 ? 'Overbought' : 
+                                     payload[0].value < 30 ? 'Oversold' : 'Neutral'}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="rsi" 
+                          stroke="#7c2d12" 
+                          strokeWidth={3}
+                          dot={false}
+                          name="RSI"
+                        />
+                        <ReferenceLine y={CONFIG.RSI.OVERBOUGHT} stroke="#dc2626" strokeWidth={2} strokeDasharray="3 3" label="Overbought (70)" />
+                        <ReferenceLine y={CONFIG.RSI.OVERSOLD} stroke="#059669" strokeWidth={2} strokeDasharray="3 3" label="Oversold (30)" />
+                        <ReferenceLine y={CONFIG.RSI.NEUTRAL} stroke="#6b7280" strokeWidth={1} strokeDasharray="2 2" label="Neutral (50)" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Technical Summary */}
+              {forecast && forecast[selectedPair] && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">Signal Strength</h4>
+                    <div className={`text-lg font-bold ${
+                      forecast[selectedPair].trend === 'bullish' ? 'text-green-600' :
+                      forecast[selectedPair].trend === 'bearish' ? 'text-red-600' : 'text-gray-600'
+                    }`}>
+                      {forecast[selectedPair].trend.toUpperCase()}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {forecast[selectedPair].strength} signal
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">RSI ({CONFIG.INDICATORS.RSI_PERIOD})</h4>
+                    <div className={`text-lg font-bold ${
+                      forecast[selectedPair].rsi > CONFIG.RSI.OVERBOUGHT ? 'text-red-600' :
+                      forecast[selectedPair].rsi < CONFIG.RSI.OVERSOLD ? 'text-green-600' : 'text-gray-600'
+                    }`}>
+                      {forecast[selectedPair].rsi ? forecast[selectedPair].rsi.toFixed(1) : '--'}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {forecast[selectedPair].rsi > CONFIG.RSI.OVERBOUGHT ? 'Overbought Zone' :
+                       forecast[selectedPair].rsi < CONFIG.RSI.OVERSOLD ? 'Oversold Zone' : 'Neutral Zone'}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">Support/Resistance</h4>
+                    <div className="text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Resistance:</span>
+                        <span className="font-medium text-red-600">
+                          {formatRate(forecast[selectedPair].resistance)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Support:</span>
+                        <span className="font-medium text-green-600">
+                          {formatRate(forecast[selectedPair].support)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">Volatility</h4>
+                    <div className="text-lg font-bold text-gray-900">
+                      {forecast[selectedPair].volatility ? (forecast[selectedPair].volatility * 100).toFixed(1) + '%' : '--'}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {forecast[selectedPair].volatility > CONFIG.VOLATILITY.HIGH ? 'High Risk' :
+                       forecast[selectedPair].volatility > CONFIG.VOLATILITY.MEDIUM ? 'Medium Risk' : 'Low Risk'}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="h-8 w-8 mx-auto mb-4 bg-gray-300 rounded animate-pulse"></div>
+              <p className="text-sm text-gray-500">Select a currency pair to view analysis</p>
+            </div>
+          )}
+        </div>
 
-            {/* Popular Pairs */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2" />
-                Popular Currency Pairs
-              </h2>
-              <p className="text-sm text-gray-500 mb-6">
-                {popularAsOf
-                  ? `Daily rates as of ${formatIsoDate(popularAsOf, { day: 'numeric', month: 'short', year: 'numeric' })}; change is against the previous day's rate.`
-                  : 'Daily rates; change is against the previous day\'s rate.'}
-              </p>
+        {/* Popular Pairs */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2" />
+            Popular Currency Pairs
+          </h2>
+          <p className="text-sm text-gray-500 mb-6">
+            {popularAsOf
+              ? `Daily rates as of ${formatIsoDate(popularAsOf, { day: 'numeric', month: 'short', year: 'numeric' })}; change is against the previous day's rate.`
+              : 'Daily rates; change is against the previous day\'s rate.'}
+          </p>
 
-              {loadingState.rates === 'error' && (
-                <div className="mb-4 p-3 rounded-lg bg-red-50 text-sm text-red-700 flex items-center justify-between">
-                  <span>{errors.rates}</span>
-                  <button
-                    onClick={() => manualRetry('rates')}
-                    className="ml-4 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    Retry
-                  </button>
-                </div>
-              )}
+          {loadingState.rates === 'error' && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 text-sm text-red-700 flex items-center justify-between">
+              <span>{errors.rates}</span>
+              <button
+                onClick={() => manualRetry('rates')}
+                className="ml-4 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {POPULAR_PAIRS.map(pair => {
-                  const rate = rates[pair]?.rate;
-                  const change = rates[pair]?.changePct;
-                  const rateDate = rates[pair]?.date;
-                  const pairForecast = forecast?.[pair];
-                  
-                  return (
-                    <div
-                      key={pair}
-                      onClick={() => {
-                        const [base, quote] = pair.split('/');
-                        handlePairChange(base, quote);
-                      }}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 transform hover:shadow-md hover:scale-102 ${
-                        selectedPair === pair 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Select currency pair ${pair}`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-gray-900">{pair}</h3>
-                        {pairForecast && (
-                          <div className="flex items-center text-xs">
-                            {pairForecast.trend === 'bullish' ? (
-                              <TrendingUp className="h-3 w-3 text-green-600 mr-1" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 text-red-600 mr-1" />
-                            )}
-                            <span className={pairForecast.trend === 'bullish' ? 'text-green-600' : 'text-red-600'}>
-                              {pairForecast.strength}
-                            </span>
-                          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {POPULAR_PAIRS.map(pair => {
+              const rate = rates[pair]?.rate;
+              const change = rates[pair]?.changePct;
+              const rateDate = rates[pair]?.date;
+              const pairForecast = forecast?.[pair];
+              
+              return (
+                <div
+                  key={pair}
+                  onClick={() => {
+                    const [base, quote] = pair.split('/');
+                    handlePairChange(base, quote);
+                  }}
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 transform hover:shadow-md hover:scale-102 ${
+                    selectedPair === pair 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Select currency pair ${pair}`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-gray-900">{pair}</h3>
+                    {pairForecast && (
+                      <div className="flex items-center text-xs">
+                        {pairForecast.trend === 'bullish' ? (
+                          <TrendingUp className="h-3 w-3 text-green-600 mr-1" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-600 mr-1" />
                         )}
+                        <span className={pairForecast.trend === 'bullish' ? 'text-green-600' : 'text-red-600'}>
+                          {pairForecast.strength}
+                        </span>
                       </div>
-                      
-                      <div className="text-xl font-bold text-gray-900 mb-1">
-                        {formatRate(rate)}
-                      </div>
-                      
-                      <div className={`text-sm font-medium ${getChangeColor(change)}`}>
-                        {change && !isNaN(change) ? (change > 0 ? '+' : '') + change.toFixed(3) + '%' : '--'}
-                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="text-xl font-bold text-gray-900 mb-1">
+                    {formatRate(rate)}
+                  </div>
+                  
+                  <div className={`text-sm font-medium ${getChangeColor(change)}`}>
+                    {change && !isNaN(change) ? (change > 0 ? '+' : '') + change.toFixed(3) + '%' : '--'}
+                  </div>
 
-                      {rateDate && rateDate !== popularAsOf && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          as of {formatIsoDate(rateDate, { day: 'numeric', month: 'short' })}
-                        </div>
-                      )}
+                  {rateDate && rateDate !== popularAsOf && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      as of {formatIsoDate(rateDate, { day: 'numeric', month: 'short' })}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            {/* News Section */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <Newspaper className="h-5 w-5 mr-2" />
-                Market News
-                {newsEnhanced && (
-                  <span className="ml-2 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full font-medium">
-                    AI Enhanced
-                  </span>
-                )}
-              </h2>
-
-              {news.length > 0 ? (
-                <div className="space-y-4">
-                  {news.map(item => (
-                    <a
-                      key={item.id}
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-colors cursor-pointer"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex space-x-2">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            item.impact === 'high' ? 'bg-red-100 text-red-800' :
-                            item.impact === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {item.impact.toUpperCase()}
-                          </span>
-                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                            item.sentiment === 'Bullish' ? 'bg-emerald-100 text-emerald-800' :
-                            item.sentiment === 'Bearish' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {item.sentiment === 'Bullish' ? '\u25B2' : item.sentiment === 'Bearish' ? '\u25BC' : '\u25CF'} {item.sentiment}
-                          </span>
-                        </div>
-                        <time className="text-xs text-gray-500">{item.time}</time>
-                      </div>
-
-                      <h3 className="font-medium text-gray-900 mb-2 hover:text-blue-600">
-                        {item.title}
-                      </h3>
-
-                      <p className="text-sm text-gray-600 mb-2">
-                        {item.aiSummary || item.summary}
-                      </p>
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{item.source}</span>
-                        <div className="flex space-x-1">
-                          {item.currencies?.map(currency => (
-                            <span key={currency} className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                              {currency}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </a>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Newspaper className="h-8 w-8 mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-500">No news available</p>
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1799,7 +1651,6 @@ const FXTracker = () => {
                   <li>• Shorter forecast horizons (7-14 days) are generally more reliable than longer ones</li>
                   <li>• Wide confidence bands indicate high uncertainty - be cautious</li>
                   <li>• High volatility periods make forecasting less reliable</li>
-                  <li>• Check economic news and events that might impact your currency pair</li>
                   <li>• Use multiple indicators together rather than relying on just one signal</li>
                   <li>• The Kalman Filter adapts its volatility estimate - useful in changing markets</li>
                 </ul>

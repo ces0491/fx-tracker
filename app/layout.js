@@ -5,7 +5,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'FX Tracker Pro - NZD/ZAR Exchange Rates',
-  description: 'Professional forex tracking with real-time rates, forecasting, and technical analysis',
+  description: 'Daily exchange rates, technical indicators and statistical forecasts for currency pairs',
 }
 
 export default function RootLayout({ children }) {
