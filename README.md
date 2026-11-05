@@ -47,6 +47,11 @@ currency pairs. Built with Next.js, with rate data from
   sparkline for 18 preset pairs.
 - **Accessibility**: every chart has a table view, controls work from the
   keyboard, and the light and dark themes follow the system setting.
+- **Analytics**: Vercel Web Analytics, which sets no cookies, counts page
+  views; custom events record clicks on "Start a conversation" and on the
+  links to sheetsolved.com.
+- **Sharing**: an Open Graph image, generated at build time, gives links to the
+  tracker a preview card.
 
 ## Tech stack
 
@@ -182,7 +187,8 @@ ships a fixed postcss.
 ## Project structure
 
 ```text
-app/                 Page, root layout, error boundary, query provider
+app/                 Page, root layout, error boundary, query provider,
+                     icon and Open Graph image
 components/
   fx/                Page sections: header, pair heading, chart, forecast,
                      statistics, popular pairs, how it works, footer

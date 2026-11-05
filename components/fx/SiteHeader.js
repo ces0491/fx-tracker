@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import FxMark from './FxMark';
+import TrackedLink from '@/components/ui/tracked-link';
 import { SITE_URL } from '@/lib/config/site';
 
 export default function SiteHeader() {
@@ -11,9 +12,14 @@ export default function SiteHeader() {
             <FxMark className="size-7 text-foreground" />
             <span className="text-lg font-semibold tracking-tight">FX Tracker</span>
           </Link>
-          <a href={SITE_URL} className="truncate text-sm text-muted transition-colors hover:text-foreground">
+          <TrackedLink
+            href={SITE_URL}
+            event="Sheet Solved link"
+            eventData={{ placement: 'header' }}
+            className="truncate text-sm text-muted transition-colors hover:text-foreground"
+          >
             by Sheet Solved
-          </a>
+          </TrackedLink>
         </div>
         <nav aria-label="Page" className="shrink-0 text-sm">
           <a href="#how-it-works" className="hidden text-muted transition-colors hover:text-foreground sm:inline">

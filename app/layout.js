@@ -1,4 +1,5 @@
 import { IBM_Plex_Sans } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import Providers from './providers';
 import './globals.css';
 
@@ -8,11 +9,22 @@ const plexSans = IBM_Plex_Sans({
   variable: '--font-plex-sans',
 });
 
+const TITLE = 'FX Tracker — daily exchange rates and forecasts';
+const DESCRIPTION =
+  'Daily exchange rates, technical indicators and statistical forecasts with their track record. Built by Sheet Solved.';
+
 export const metadata = {
   metadataBase: new URL('https://fx.sheetsolved.com'),
-  title: 'FX Tracker — daily exchange rates and forecasts',
-  description:
-    'Daily exchange rates, technical indicators and statistical forecasts with their track record. Built by Sheet Solved.',
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: '/',
+    siteName: 'FX Tracker',
+    type: 'website',
+  },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
 export const viewport = {
@@ -27,6 +39,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className={plexSans.variable}>
       <body>
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
