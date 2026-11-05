@@ -1,8 +1,8 @@
 # 🌍 FX Tracker
 
 A foreign exchange tracking application built with Next.js,
-featuring real-time currency rates, forecasting, historical data
-analysis, technical indicators, and live market news.
+featuring daily reference rates, forecasting, historical data
+analysis, technical indicators, and market news.
 
 ![FX Tracker Pro](https://img.shields.io/badge/Next.js-15.4.2-black)
 ![React](https://img.shields.io/badge/React-18.x-blue)
@@ -12,23 +12,26 @@ analysis, technical indicators, and live market news.
 
 ## ✨ Features
 
-### 🔄 Real-Time Data
+### 🔄 Rate Data
 
-- **Live Exchange Rates**: Real-time currency conversion for 27+ major currencies
-- **Cross-Rate Calculations**: Automatic calculation of all currency pair combinations
-- **Auto-Refresh**: Automated updates with status indicators
-- **Free Fallback APIs**: Works without API keys using Frankfurter & ExchangeRate-API
+- **Daily Reference Rates**: Blended daily mid-market rates from
+  [Frankfurter](https://frankfurter.dev) v2, which combines central-bank and
+  other official sources. Rates are daily, not intraday, and each is shown with its date.
+- **Currencies**: The active ISO 4217 currencies Frankfurter publishes.
+  Crypto-assets and other non-ISO codes are excluded.
+- **No API Keys**: Frankfurter needs no key. All rate requests go through the
+  app's own API routes, which are cached at the CDN for an hour.
 
 ### 📊 Analytics & Charting
 
-- **1-Year Historical Data**: Real historical forex data (365 days) via Frankfurter API
+- **1-Year Historical Data**: One year of daily rates per pair from Frankfurter
 - **Technical Indicators**:
   - Simple Moving Averages (5-day, 20-day)
   - Bollinger Bands
   - RSI (Relative Strength Index)
   - Support/Resistance levels
-- **Multiple Chart Types**: Line charts and candlestick views
-- **Interactive Charts**: Zoom, pan, and export functionality
+- **Line Chart**: Daily rates with indicator overlays and forecast bands
+- **Date Ranges and Export**: Quick 1M/3M/6M/12M/YTD ranges and CSV export
 
 ### 🤖 Forecasting
 
@@ -100,8 +103,7 @@ See [FORECASTING.md](FORECASTING.md) for detailed documentation.
 
 ### Backend APIs (Node.js)
 
-- **Real-time Rates**: ExchangeRate-API (free, no key)
-- **Historical Data**: Frankfurter API (free, no key)
+- **Rates (latest and historical)**: Frankfurter v2 (free, no key)
 - **News**: ForexLive RSS (free, no key)
 - **Events**: Static 2025 calendar + external APIs
 - **Forecasting**: 5 JavaScript algorithms built-in
@@ -163,10 +165,8 @@ See [FORECASTING.md](FORECASTING.md) for detailed documentation.
 2. **Add FREE API keys** (see [.env.example](.env.example) for step-by-step instructions):
 
    ```env
-   # 100% FREE APIs - Get all 3 in ~5 minutes!
    NEWS_API_KEY=your_newsapi_key           # newsapi.org
    GNEWS_API_KEY=your_gnews_key            # gnews.io
-   EXCHANGE_RATE_API_KEY=your_key          # exchangerate-api.com
    ```
 
 ### Optional: Python ML Forecasting Service
@@ -196,8 +196,7 @@ See [python-forecast-service/README.md](python-forecast-service/README.md) for d
 
 The app uses free fallback services:
 
-- **Rates**: ExchangeRate-API (free, no key)
-- **Historical**: Frankfurter API (free, no key)
+- **Rates**: Frankfurter v2 (free, no key)
 - **News**: ForexLive RSS (free, no key)
 - **Events**: Static 2025 economic calendar
 
@@ -207,7 +206,6 @@ The app uses free fallback services:
 |-----|---------|-----------|------------|
 | **NewsAPI.org** | Better news coverage | 100 req/day | [Sign up](https://newsapi.org/) - 2 min |
 | **GNews API** | Alternative news | 100 req/day | [Sign up](https://gnews.io/) - 2 min |
-| **ExchangeRate-API** | Higher rate limits | 1,500/month | [Sign up](https://app.exchangerate-api.com/sign-up) - 1 min |
 
 **Note**: All APIs above are 100% free forever. No credit card required!
 
@@ -240,8 +238,9 @@ fx-tracker/
 │   └── FXTracker.js              # Main React component
 ├── pages/
 │   ├── api/                      # Backend API routes (Node.js)
-│   │   ├── rates.js             # Real-time rates
-│   │   ├── historical.js        # 90-day historical data
+│   │   ├── currencies.js        # Currencies available from Frankfurter
+│   │   ├── latest.js            # Latest rates for the popular pairs
+│   │   ├── historical.js        # One year of daily rates for a pair
 │   │   ├── forecast.js          # 5 JS forecasting algorithms
 │   │   ├── news.js              # Live financial news
 │   │   └── events.js            # Economic calendar
@@ -267,8 +266,9 @@ fx-tracker/
 
 | Endpoint | Method | Description | Response Time |
 |----------|--------|-------------|---------------|
-| `/api/rates` | GET | Real-time rates for all currency pairs | < 500ms |
-| `/api/historical?pair=NZD/ZAR` | GET | 90-day historical OHLC data | < 2s |
+| `/api/currencies` | GET | Currencies available from Frankfurter (ISO 4217 only) | < 1s |
+| `/api/latest` | GET | Latest rate and change on the previous day for the popular pairs | < 2s |
+| `/api/historical?pair=NZD/ZAR` | GET | One year of daily rates (`date`, `close`) | < 2s |
 | `/api/forecast` | POST | Generate forecast with selected algorithm | < 5s |
 | `/api/news` | GET | Live financial news with sentiment | < 2s |
 | `/api/events` | GET | Economic calendar (next 90 days) | < 1s |
@@ -283,15 +283,24 @@ fx-tracker/
 
 ### Example Responses
 
-**Rates**:
+`/api/historical` returns 400 for a malformed or unsupported pair, 422 when
+fewer than 30 daily rates exist for the pair in the last year, and 502 when
+Frankfurter can't be reached.
+
+**Latest** (`/api/latest`, abridged):
 
 ```json
 {
+  "source": { "name": "Frankfurter", "url": "https://frankfurter.dev" },
   "rates": {
-    "NZD/ZAR": 9.6573,
-    "EUR/USD": 1.0856
-  },
-  "timestamp": "2025-01-20T12:00:00Z"
+    "NZD/ZAR": {
+      "rate": 9.2404,
+      "date": "2026-11-05",
+      "previousRate": 9.2823,
+      "previousDate": "2026-11-04",
+      "changePct": -0.451
+    }
+  }
 }
 ```
 
@@ -320,8 +329,9 @@ fx-tracker/
 - **Moving Averages**: 5 and 20-period SMAs for trend identification
 - **Bollinger Bands**: Volatility bands with 2σ standard deviations
 - **RSI**: 14-period momentum oscillator
-- **Support/Resistance**: Dynamic levels from 30-day highs/lows
-- **Volatility**: Annualized volatility calculation
+- **Support/Resistance**: Lowest and highest daily rate over the last 30 observations
+- **Volatility**: 30-observation volatility, annualised at the series' own
+  frequency (Frankfurter's blended series is calendar-daily, so about 365 a year)
 
 ### Advanced Forecasting System
 

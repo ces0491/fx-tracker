@@ -1,30 +1,52 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { TrendingUp, TrendingDown, RefreshCw, Newspaper, BarChart3, Globe, Calendar, AlertCircle, Activity, Target, Shield, Edit3, Check, X, Wifi, WifiOff, Clock, AlertTriangle, Maximize, Minimize, HelpCircle } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
+import { TrendingUp, TrendingDown, RefreshCw, Newspaper, BarChart3, Globe, Activity, Target, Shield, Edit3, Check, X, AlertTriangle, Maximize, Minimize, HelpCircle } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { DEFAULT_PAIR, POPULAR_PAIRS } from '../lib/config/pairs.js';
+import { RATE_SOURCE } from '../lib/config/source.js';
+import { observationsPerYear } from '../lib/utils/mathUtils.js';
+
+const [DEFAULT_BASE, DEFAULT_QUOTE] = DEFAULT_PAIR.split('/');
+
+// Fetch JSON from our API routes, surfacing the route's error message on failure.
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.error || `HTTP ${response.status}`);
+  }
+  return body;
+}
+
+// Rate dates are calendar dates (YYYY-MM-DD). Format them in UTC so they don't
+// shift by a day for viewers west of Greenwich.
+function formatIsoDate(dateStr, options) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('en-US', { ...options, timeZone: 'UTC' });
+}
 
 const FXTracker = () => {
   const [rates, setRates] = useState({});
+  const [currencyList, setCurrencyList] = useState([]);
   const [historicalData, setHistoricalData] = useState({});
-  const [selectedPair, setSelectedPair] = useState('NZD/ZAR');
-  const [baseCurrency, setBaseCurrency] = useState('NZD');
-  const [quoteCurrency, setQuoteCurrency] = useState('ZAR');
+  const [selectedPair, setSelectedPair] = useState(DEFAULT_PAIR);
+  const [baseCurrency, setBaseCurrency] = useState(DEFAULT_BASE);
+  const [quoteCurrency, setQuoteCurrency] = useState(DEFAULT_QUOTE);
   const [forecast, setForecast] = useState(null);
   const [news, setNews] = useState([]);
   const [newsEnhanced, setNewsEnhanced] = useState(false);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
-  
+
   // Loading and error states
   const [loadingState, setLoadingState] = useState({
+    currencies: 'idle',
     rates: 'idle',
     historical: 'idle',
     news: 'idle',
     events: 'idle'
   });
   const [errors, setErrors] = useState({});
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('online');
 
   // Enhanced features
   const [dateRange, setDateRange] = useState({
@@ -34,7 +56,6 @@ const FXTracker = () => {
   const [forecastDays, setForecastDays] = useState(30);
   const [forecastAlgorithm, setForecastAlgorithm] = useState('ensemble');
   const [showForecast, setShowForecast] = useState(true);
-  const [chartType, setChartType] = useState('line');
   const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [indicators, setIndicators] = useState({
     sma5: true,
@@ -81,20 +102,10 @@ const FXTracker = () => {
     }
   }), []);
 
-  // Available currencies
-  const currencies = useMemo(() => [
-    'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'ZAR', 
-    'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'TRY', 'RUB', 'CNY', 
-    'HKD', 'SGD', 'KRW', 'INR', 'BRL', 'MXN', 'THB', 'MYR', 'IDR',
-    'PHP', 'VND', 'KES', 'NGN', 'EGP', 'MAD', 'GHS', 'UGX', 'TZS',
-    'ZMW', 'BWP', 'MUR', 'SCR', 'ETB', 'RWF', 'AOA', 'MZN'
-  ], []);
-
-  const suggestedPairs = useMemo(() => [
-    'NZD/ZAR', 'NZD/USD', 'USD/ZAR', 'EUR/ZAR', 'GBP/ZAR', 'AUD/NZD',
-    'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD', 'EUR/GBP',
-    'USD/KES', 'EUR/KES', 'GBP/KES', 'KES/ZAR', 'USD/NGN', 'EUR/NGN'
-  ], []);
+  const currencyNames = useMemo(
+    () => Object.fromEntries(currencyList.map(({ code, name }) => [code, name])),
+    [currencyList]
+  );
 
   // Utility functions
   const formatRate = useCallback((rate) => {
@@ -102,142 +113,58 @@ const FXTracker = () => {
     return rate < 1 ? rate.toFixed(5) : rate.toFixed(4);
   }, []);
 
-  const formatDateForChart = useCallback((dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  }, []);
+  const formatDateForChart = useCallback(
+    (dateStr) => formatIsoDate(dateStr, { month: 'short', day: 'numeric' }),
+    []
+  );
 
   const validateCurrencyCode = useCallback((code) => {
     return /^[A-Z]{3}$/.test(code.toUpperCase());
   }, []);
 
-  const getCurrencyName = useCallback((code) => {
-    const names = {
-      'USD': 'US Dollar', 'EUR': 'Euro', 'GBP': 'British Pound', 'JPY': 'Japanese Yen',
-      'CHF': 'Swiss Franc', 'AUD': 'Australian Dollar', 'CAD': 'Canadian Dollar', 
-      'NZD': 'New Zealand Dollar', 'ZAR': 'South African Rand', 'SEK': 'Swedish Krona',
-      'NOK': 'Norwegian Krone', 'DKK': 'Danish Krone', 'PLN': 'Polish Zloty',
-      'CZK': 'Czech Koruna', 'HUF': 'Hungarian Forint', 'TRY': 'Turkish Lira',
-      'RUB': 'Russian Ruble', 'CNY': 'Chinese Yuan', 'HKD': 'Hong Kong Dollar',
-      'SGD': 'Singapore Dollar', 'KRW': 'South Korean Won', 'INR': 'Indian Rupee',
-      'BRL': 'Brazilian Real', 'MXN': 'Mexican Peso', 'THB': 'Thai Baht', 
-      'MYR': 'Malaysian Ringgit', 'IDR': 'Indonesian Rupiah', 'PHP': 'Philippine Peso',
-      'VND': 'Vietnamese Dong', 'KES': 'Kenyan Shilling', 'NGN': 'Nigerian Naira',
-      'EGP': 'Egyptian Pound', 'MAD': 'Moroccan Dirham', 'GHS': 'Ghanaian Cedi',
-      'UGX': 'Ugandan Shilling', 'TZS': 'Tanzanian Shilling', 'ZMW': 'Zambian Kwacha',
-      'BWP': 'Botswana Pula', 'MUR': 'Mauritian Rupee', 'SCR': 'Seychellois Rupee',
-      'ETB': 'Ethiopian Birr', 'RWF': 'Rwandan Franc', 'AOA': 'Angolan Kwanza',
-      'MZN': 'Mozambican Metical'
-    };
-    return names[code] || code;
+  const clearError = useCallback((key) => {
+    setErrors(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }, []);
 
-  // REAL API CALLS - Fetch live exchange rates
+  // Currencies offered in the selectors, from the rate source
+  const fetchCurrencies = useCallback(async () => {
+    setLoadingState(prev => ({ ...prev, currencies: 'loading' }));
+    try {
+      const data = await fetchJson('/api/currencies');
+      setCurrencyList(data.currencies);
+      setLoadingState(prev => ({ ...prev, currencies: 'success' }));
+      clearError('currencies');
+    } catch (error) {
+      console.error('Failed to fetch currencies:', error);
+      setLoadingState(prev => ({ ...prev, currencies: 'error' }));
+      setErrors(prev => ({ ...prev, currencies: `Failed to load currencies: ${error.message}` }));
+    }
+  }, [clearError]);
+
+  // Latest daily rate and change for the popular pairs
   const fetchRates = useCallback(async () => {
     setLoadingState(prev => ({ ...prev, rates: 'loading' }));
-    
-    // Try multiple APIs in order of preference
-    const apis = [
-      // Free API that supports CORS
-      {
-        url: 'https://api.fixer.io/latest?access_key=YOUR_API_KEY',
-        name: 'Fixer.io',
-        parse: (data) => data.rates,
-        needsKey: true
-      },
-      // CORS proxy with exchangerate.host
-      {
-        url: 'https://api.allorigins.win/raw?url=https://api.exchangerate.host/latest?base=USD',
-        name: 'ExchangeRate.host (via CORS proxy)',
-        parse: (data) => typeof data === 'string' ? JSON.parse(data).rates : data.rates,
-        needsKey: false
-      },
-      // Another free option
-      {
-        url: 'https://api.exchangerate-api.com/v4/latest/USD',
-        name: 'ExchangeRate-API',
-        parse: (data) => data.rates,
-        needsKey: false
-      }
-    ];
-
-    for (const api of apis) {
-      try {
-        // Skip APIs that need keys for now
-        if (api.needsKey) continue;
-        
-        console.log(`Trying ${api.name}...`);
-        const response = await fetch(api.url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const data = await response.json();
-        if (!data || (!data.rates && !api.parse)) throw new Error('Invalid response format');
-        
-        const baseRates = api.parse ? api.parse(data) : data.rates;
-        if (!baseRates || typeof baseRates !== 'object') throw new Error('No rates data');
-        
-        // Convert to currency pairs format
-        const pairRates = {};
-        
-        // Generate all possible pairs from the suggested pairs
-        suggestedPairs.forEach(pair => {
-          const [base, quote] = pair.split('/');
-          if (baseRates[base] && baseRates[quote]) {
-            // Calculate cross rate: base/quote = (USD/quote) / (USD/base)
-            pairRates[pair] = baseRates[quote] / baseRates[base];
-          } else if (base === 'USD' && baseRates[quote]) {
-            pairRates[pair] = baseRates[quote];
-          } else if (quote === 'USD' && baseRates[base]) {
-            pairRates[pair] = 1 / baseRates[base];
-          }
-        });
-        
-        if (Object.keys(pairRates).length === 0) throw new Error('No valid currency pairs found');
-        
-        setRates(pairRates);
-        setLastUpdate(new Date());
-        setLoadingState(prev => ({ ...prev, rates: 'success' }));
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors.rates;
-          return newErrors;
-        });
-        
-        console.log(`Successfully loaded rates from ${api.name}`);
-        return; // Success, exit the loop
-        
-      } catch (error) {
-        console.error(`Failed to fetch from ${api.name}:`, error);
-        continue; // Try next API
-      }
+    try {
+      const data = await fetchJson('/api/latest');
+      setRates(data.rates);
+      setLoadingState(prev => ({ ...prev, rates: 'success' }));
+      clearError('rates');
+    } catch (error) {
+      console.error('Failed to fetch latest rates:', error);
+      setLoadingState(prev => ({ ...prev, rates: 'error' }));
+      setErrors(prev => ({ ...prev, rates: `Failed to load latest rates: ${error.message}` }));
     }
-    
-    // If all APIs failed
-    setLoadingState(prev => ({ ...prev, rates: 'error' }));
-    setErrors(prev => ({ 
-      ...prev, 
-      rates: 'All forex APIs failed. This may be due to CORS restrictions or API limits. Consider using a backend server for production.'
-    }));
-  }, [suggestedPairs]);
+  }, [clearError]);
 
-  // REAL API CALLS - Fetch historical data
+  // One year of daily closes for a pair, plus indicators and a forecast
   const fetchHistoricalData = useCallback(async (pair) => {
     setLoadingState(prev => ({ ...prev, historical: 'loading' }));
     try {
-      // Use our backend API endpoint to fetch historical data
-      const response = await fetch(`/api/historical?pair=${encodeURIComponent(pair)}`);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (!data.historicalData || data.historicalData.length === 0) {
-        throw new Error('No historical data available for this pair');
-      }
+      const data = await fetchJson(`/api/historical?pair=${encodeURIComponent(pair)}`);
 
       const finalData = calculateIndicators(data.historicalData);
 
@@ -268,10 +195,10 @@ const FXTracker = () => {
       const lastRate = recentRates[recentRates.length - 1];
       const trend = (lastRate - firstRate) / firstRate;
 
-      const highs = finalData.slice(-30).map(d => d.high);
-      const lows = finalData.slice(-30).map(d => d.low);
-      const resistance = Math.max(...highs);
-      const support = Math.min(...lows);
+      // Support/resistance: lowest and highest daily close over the last 30 observations
+      const recentCloses = finalData.slice(-30).map(d => d.close);
+      const resistance = Math.max(...recentCloses);
+      const support = Math.min(...recentCloses);
 
       // Use Kalman filter's adaptive volatility when available, otherwise fixed-window
       let volatility;
@@ -282,7 +209,8 @@ const FXTracker = () => {
           i > 0 ? Math.log(d.close / arr[i-1].close) : 0
         ).slice(1);
         const variance = returns.reduce((sum, r) => sum + r * r, 0) / returns.length;
-        volatility = Math.sqrt(variance * 252);
+        // Annualise at the series' own frequency (calendar-daily for Frankfurter's blended rates)
+        volatility = Math.sqrt(variance * observationsPerYear(finalData.map(d => d.date)));
       }
 
       setForecast(prev => ({
@@ -290,6 +218,7 @@ const FXTracker = () => {
         [pair]: {
           data: forecastResult.data,
           algorithm: forecastResult.algorithm,
+          forecastError: forecastResult.error || null,
           confidence: forecastResult.confidence,
           accuracy: forecastResult.accuracy,
           mae: forecastResult.mae,
@@ -303,11 +232,7 @@ const FXTracker = () => {
       }));
       
       setLoadingState(prev => ({ ...prev, historical: 'success' }));
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors.historical;
-        return newErrors;
-      });
+      clearError('historical');
     } catch (error) {
       console.error('Failed to fetch historical data:', error);
       setLoadingState(prev => ({ ...prev, historical: 'error' }));
@@ -318,11 +243,8 @@ const FXTracker = () => {
 
   // Generate forecast using selected algorithm
   const generateForecast = useCallback(async (historicalData, days, algorithm) => {
-    if (!historicalData || historicalData.length < 10) return [];
-
     try {
-      // Call the forecast API
-      const response = await fetch('/api/forecast', {
+      const data = await fetchJson('/api/forecast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -332,13 +254,6 @@ const FXTracker = () => {
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Forecast API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Add metadata to forecast state
       return {
         data: data.forecast,
         algorithm: data.algorithm,
@@ -347,49 +262,15 @@ const FXTracker = () => {
         mae: data.metadata.mae,
         latestVolatility: data.metadata.latestVolatility
       };
-
     } catch (error) {
       console.error('Forecast generation error:', error);
-
-      // Fallback to simple client-side forecast
-      const prices = historicalData.map(d => d.close);
-      const n = prices.length;
-      const currentRate = prices[n - 1];
-
-      const shortTermTrend = (prices[n - 1] - prices[n - 5]) / 5;
-      const mediumTermTrend = (prices[n - 1] - prices[n - 15]) / 15;
-      const avgTrend = (shortTermTrend + mediumTermTrend) / 2;
-
-      const forecast = [];
-      let forecastValue = currentRate;
-      const lastDate = new Date(historicalData[n - 1].date);
-
-      for (let i = 1; i <= days; i++) {
-        const forecastDate = new Date(lastDate);
-        forecastDate.setDate(forecastDate.getDate() + i);
-
-        const trendDecay = Math.exp(-i / 30);
-        const projection = avgTrend * trendDecay;
-        const noise = (Math.random() - 0.5) * currentRate * 0.001;
-
-        forecastValue = forecastValue + projection + noise;
-
-        forecast.push({
-          date: forecastDate.toISOString().split('T')[0],
-          rate: forecastValue,
-          upper: forecastValue + (forecastValue * 0.05),
-          lower: forecastValue - (forecastValue * 0.05),
-          isForecast: true,
-          type: 'forecast'
-        });
-      }
-
       return {
-        data: forecast,
-        algorithm: 'trend (fallback)',
-        confidence: 0.65,
-        accuracy: 0.70,
-        mae: 0
+        data: [],
+        algorithm: algorithm || forecastAlgorithm,
+        error: error.message,
+        confidence: null,
+        accuracy: null,
+        mae: null
       };
     }
   }, [forecastAlgorithm]);
@@ -508,9 +389,6 @@ const FXTracker = () => {
     
     data.forEach(item => {
       if (item.close) prices.push(item.close);
-      if (item.high) prices.push(item.high);
-      if (item.low) prices.push(item.low);
-      if (item.open) prices.push(item.open);
       if (item.rate) prices.push(item.rate); // For forecast data
       
       if (indicators.sma5 && item.sma5) prices.push(item.sma5);
@@ -559,16 +437,6 @@ const FXTracker = () => {
                 Projected Rate: {formatRate(data.rate)}
               </p>
             </div>
-          ) : chartType === 'candlestick' && data.open !== undefined ? (
-            <div className="space-y-1 mt-2">
-              <p className="text-blue-700 font-semibold">Open: {formatRate(data.open)}</p>
-              <p className="text-green-700 font-semibold">High: {formatRate(data.high)}</p>
-              <p className="text-red-700 font-semibold">Low: {formatRate(data.low)}</p>
-              <p className="text-gray-900 font-bold">Close: {formatRate(data.close)}</p>
-              {data.volume && (
-                <p className="text-gray-700 font-semibold">Volume: {data.volume.toLocaleString()}</p>
-              )}
-            </div>
           ) : (
             <div className="space-y-1 mt-2">
               {payload.map((entry, index) => (
@@ -582,7 +450,7 @@ const FXTracker = () => {
       );
     }
     return null;
-  }, [chartType, formatDateForChart, formatRate]);
+  }, [formatDateForChart, formatRate]);
 
   // Chart components
   const HistoricalPriceChart = useCallback(({ data }) => {
@@ -632,7 +500,7 @@ const FXTracker = () => {
             strokeWidth={3}
             dot={false}
             connectNulls={false}
-            name="Close Price"
+            name="Daily Rate"
           />
 
           {/* Forecast confidence bands */}
@@ -767,8 +635,8 @@ const FXTracker = () => {
 
     let startDate;
     if (months === 'ytd') {
-      // Year to date - from Jan 1 of the end date's year
-      startDate = new Date(endDate.getFullYear(), 0, 1);
+      // Year to date - from Jan 1 of the end date's year (UTC, matching the ISO dates)
+      startDate = new Date(Date.UTC(endDate.getUTCFullYear(), 0, 1));
     } else {
       // Calculate months back from end date
       startDate = new Date(endDate.getTime() - months * 30 * 24 * 60 * 60 * 1000);
@@ -819,10 +687,6 @@ const FXTracker = () => {
       ...validForecastData.map(item => ({
         ...item,
         close: null,
-        open: null,
-        high: null,
-        low: null,
-        volume: null,
         type: 'forecast'
       }))
     ];
@@ -852,17 +716,23 @@ const FXTracker = () => {
       setCustomCurrencyError('Quote currency must be a valid 3-letter code (e.g., USD)');
       return;
     }
-    
+
     if (base === quote) {
       setCustomCurrencyError('Base and quote currencies must be different');
       return;
     }
-    
+
+    const unsupported = [base, quote].filter(code => !currencyNames[code]);
+    if (unsupported.length > 0) {
+      setCustomCurrencyError(`No daily rates available for ${unsupported.join(' or ')}`);
+      return;
+    }
+
     handlePairChange(base, quote);
     setManualInputMode(false);
     setManualBaseCurrency('');
     setManualQuoteCurrency('');
-  }, [manualBaseCurrency, manualQuoteCurrency, validateCurrencyCode, handlePairChange]);
+  }, [manualBaseCurrency, manualQuoteCurrency, validateCurrencyCode, handlePairChange, currencyNames]);
 
   const cancelManualInput = useCallback(() => {
     setManualInputMode(false);
@@ -898,6 +768,9 @@ const FXTracker = () => {
   // Manual retry functions
   const manualRetry = useCallback((type) => {
     switch (type) {
+      case 'currencies':
+        fetchCurrencies();
+        break;
       case 'rates':
         fetchRates();
         break;
@@ -911,34 +784,30 @@ const FXTracker = () => {
         fetchEvents();
         break;
     }
-  }, [fetchRates, fetchHistoricalData, selectedPair, fetchNews, fetchEvents]);
+  }, [fetchCurrencies, fetchRates, fetchHistoricalData, selectedPair, fetchNews, fetchEvents]);
 
   // Export data
   const exportData = useCallback(() => {
     if (!historicalData[selectedPair]) return;
-    
+
     const data = historicalData[selectedPair].map(item => ({
       Date: item.date,
-      Open: item.open,
-      High: item.high,
-      Low: item.low,
-      Close: item.close,
-      Volume: item.volume,
+      Rate: item.close,
       SMA5: item.sma5,
       SMA20: item.sma20,
       RSI: item.rsi,
       BollingerUpper: item.bollingerUpper,
       BollingerLower: item.bollingerLower
     }));
-    
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + "Date,Open,High,Low,Close,Volume,SMA5,SMA20,RSI,BollingerUpper,BollingerLower\n"
-      + data.map(row => `${row.Date},${row.Open},${row.High},${row.Low},${row.Close},${row.Volume},${row.SMA5||''},${row.SMA20||''},${row.RSI||''},${row.BollingerUpper||''},${row.BollingerLower||''}`).join("\n");
-    
+
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + "Date,Rate,SMA5,SMA20,RSI,BollingerUpper,BollingerLower\n"
+      + data.map(row => `${row.Date},${row.Rate},${row.SMA5||''},${row.SMA20||''},${row.RSI||''},${row.BollingerUpper||''},${row.BollingerLower||''}`).join("\n");
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${selectedPair}_real_data.csv`);
+    link.setAttribute("download", `${selectedPair.replace('/', '-')}_daily_rates.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -985,17 +854,23 @@ const FXTracker = () => {
 
   // Initialize on mount
   useEffect(() => {
+    fetchCurrencies();
     fetchRates();
     fetchNews();
     fetchEvents();
-  }, [fetchRates, fetchNews, fetchEvents]);
+  }, [fetchCurrencies, fetchRates, fetchNews, fetchEvents]);
 
   // Fetch historical data when pair changes
   useEffect(() => {
-    if (selectedPair && loadingState.rates === 'success') {
+    if (selectedPair) {
       fetchHistoricalData(selectedPair);
     }
-  }, [selectedPair, loadingState.rates, fetchHistoricalData]);
+  }, [selectedPair, fetchHistoricalData]);
+
+  const selectedSeries = historicalData[selectedPair];
+  const latestPoint = selectedSeries?.[selectedSeries.length - 1];
+  // Most recent date across the popular-pair cards; cards with an older date say so.
+  const popularAsOf = Object.values(rates).reduce((latest, r) => (r.date > latest ? r.date : latest), '');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -1009,28 +884,17 @@ const FXTracker = () => {
                 <h1 className="text-2xl font-bold text-gray-900">FX Tracker</h1>
                 <p className="text-sm text-gray-500 flex items-center">
                   <Shield className="h-3 w-3 mr-1" />
-                  Live market data from exchangerate.host API
+                  Daily mid-market rates from&nbsp;
+                  <a
+                    href={RATE_SOURCE.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-blue-600"
+                  >
+                    {RATE_SOURCE.name}
+                  </a>
                 </p>
               </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Wifi className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-green-600">Live API</span>
-              </div>
-              {lastUpdate && (
-                <div className="text-sm text-gray-500">
-                  Last update: {lastUpdate.toLocaleTimeString()}
-                </div>
-              )}
-              <button
-                onClick={() => manualRetry('rates')}
-                disabled={loadingState.rates === 'loading'}
-                className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                aria-label="Refresh rates"
-              >
-                <RefreshCw className={`h-4 w-4 ${loadingState.rates === 'loading' ? 'animate-spin' : ''}`} />
-              </button>
             </div>
           </div>
         </div>
@@ -1046,26 +910,23 @@ const FXTracker = () => {
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Globe className="h-5 w-5 mr-2" />
                 Currency Pair Selection
-                {loadingState.rates === 'success' && (
-                  <span className="text-sm text-green-600 font-normal ml-2">• Live rates loaded</span>
-                )}
               </h2>
-              
-              {loadingState.rates === 'error' ? (
+
+              {loadingState.currencies === 'error' ? (
                 <div className="text-center py-8">
                   <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-600" />
-                  <p className="text-red-600 font-medium mb-2">Unable to load live exchange rates</p>
-                  <p className="text-sm text-gray-600 mb-4">{errors.rates}</p>
+                  <p className="text-red-600 font-medium mb-2">Unable to load the currency list</p>
+                  <p className="text-sm text-gray-600 mb-4">{errors.currencies}</p>
                   <button
-                    onClick={() => manualRetry('rates')}
+                    onClick={() => manualRetry('currencies')}
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                   >
                     <RefreshCw className="h-4 w-4 inline mr-2" />
-                    Retry API Call
+                    Retry
                   </button>
                 </div>
-              ) : loadingState.rates === 'loading' ? (
-                <LoadingIndicator type="rates" label="Fetching live exchange rates from API..." />
+              ) : loadingState.currencies !== 'success' ? (
+                <LoadingIndicator type="currencies" label="Loading currencies..." />
               ) : (
                 <>
                   {!manualInputMode ? (
@@ -1075,17 +936,21 @@ const FXTracker = () => {
                           <label className="block text-sm font-medium text-gray-800 mb-2">Base Currency</label>
                           <select
                             value={baseCurrency}
-                            onChange={(e) => handlePairChange(e.target.value, quoteCurrency)}
+                            onChange={(e) => {
+                              const base = e.target.value;
+                              // Picking the current quote as base swaps the pair
+                              handlePairChange(base, base === quoteCurrency ? baseCurrency : quoteCurrency);
+                            }}
                             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-semibold"
                           >
-                            {currencies.map(currency => (
-                              <option key={currency} value={currency}>
-                                {currency} - {getCurrencyName(currency)}
+                            {currencyList.map(({ code, name }) => (
+                              <option key={code} value={code}>
+                                {code} - {name}
                               </option>
                             ))}
                           </select>
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-medium text-gray-800 mb-2">Quote Currency</label>
                           <select
@@ -1093,22 +958,27 @@ const FXTracker = () => {
                             onChange={(e) => handlePairChange(baseCurrency, e.target.value)}
                             className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-semibold"
                           >
-                            {currencies.filter(c => c !== baseCurrency).map(currency => (
-                              <option key={currency} value={currency}>
-                                {currency} - {getCurrencyName(currency)}
+                            {currencyList.filter(({ code }) => code !== baseCurrency).map(({ code, name }) => (
+                              <option key={code} value={code}>
+                                {code} - {name}
                               </option>
                             ))}
                           </select>
                         </div>
-                        
+
                         <div className="text-center">
                           <div className="text-3xl font-bold text-blue-600 transition-all duration-300">
-                            {formatRate(rates[selectedPair])}
+                            {formatRate(latestPoint?.close)}
                           </div>
                           <div className={`text-sm font-medium transition-colors duration-200 ${getChangeColor(getCurrentChange(selectedPair))}`}>
-                            {getCurrentChange(selectedPair) && !isNaN(getCurrentChange(selectedPair)) ? 
+                            {getCurrentChange(selectedPair) && !isNaN(getCurrentChange(selectedPair)) ?
                               (getCurrentChange(selectedPair) > 0 ? '+' : '') + getCurrentChange(selectedPair).toFixed(3) + '%' : '--'}
                           </div>
+                          {latestPoint && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              as of {formatIsoDate(latestPoint.date, { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </div>
+                          )}
                         </div>
                       </div>
                       
@@ -1189,7 +1059,7 @@ const FXTracker = () => {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                   <Activity className="h-5 w-5 mr-2" />
-                  {selectedPair} - Live Market Analysis
+                  {selectedPair} - Daily Rate Analysis
                 </h2>
                 {historicalData[selectedPair] && (
                   <button
@@ -1442,8 +1312,15 @@ const FXTracker = () => {
                         </div>
                       </div>
 
+                      {forecast?.[selectedPair]?.forecastError && (
+                        <div className="mb-3 p-3 rounded-lg bg-red-50 text-sm text-red-700 flex items-start">
+                          <AlertTriangle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                          Forecast unavailable: {forecast[selectedPair].forecastError}
+                        </div>
+                      )}
+
                       {/* Algorithm Info */}
-                      {forecast && forecast[selectedPair] && (
+                      {forecast && forecast[selectedPair] && !forecast[selectedPair].forecastError && (
                         <div className="grid grid-cols-4 gap-2 text-sm">
                           <div className="bg-white p-2 rounded">
                             <span className="text-gray-700 font-medium">Algorithm:</span>
@@ -1451,7 +1328,7 @@ const FXTracker = () => {
                           </div>
                           <div className="bg-white p-2 rounded">
                             <span className="text-gray-700 font-medium">Training Data:</span>
-                            <span className="font-semibold ml-1 text-gray-900">{historicalData[selectedPair]?.length || 0} days</span>
+                            <span className="font-semibold ml-1 text-gray-900">{historicalData[selectedPair]?.length || 0} daily rates</span>
                           </div>
                           <div className="bg-white p-2 rounded">
                             <span className="text-gray-700 font-medium">Confidence:</span>
@@ -1595,15 +1472,33 @@ const FXTracker = () => {
 
             {/* Popular Pairs */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+              <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center">
                 <BarChart3 className="h-5 w-5 mr-2" />
                 Popular Currency Pairs
               </h2>
-              
+              <p className="text-sm text-gray-500 mb-6">
+                {popularAsOf
+                  ? `Daily rates as of ${formatIsoDate(popularAsOf, { day: 'numeric', month: 'short', year: 'numeric' })}; change is against the previous day's rate.`
+                  : 'Daily rates; change is against the previous day\'s rate.'}
+              </p>
+
+              {loadingState.rates === 'error' && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 text-sm text-red-700 flex items-center justify-between">
+                  <span>{errors.rates}</span>
+                  <button
+                    onClick={() => manualRetry('rates')}
+                    className="ml-4 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {suggestedPairs.map(pair => {
-                  const rate = rates[pair];
-                  const change = getCurrentChange(pair);
+                {POPULAR_PAIRS.map(pair => {
+                  const rate = rates[pair]?.rate;
+                  const change = rates[pair]?.changePct;
+                  const rateDate = rates[pair]?.date;
                   const pairForecast = forecast?.[pair];
                   
                   return (
@@ -1645,6 +1540,12 @@ const FXTracker = () => {
                       <div className={`text-sm font-medium ${getChangeColor(change)}`}>
                         {change && !isNaN(change) ? (change > 0 ? '+' : '') + change.toFixed(3) + '%' : '--'}
                       </div>
+
+                      {rateDate && rateDate !== popularAsOf && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          as of {formatIsoDate(rateDate, { day: 'numeric', month: 'short' })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
