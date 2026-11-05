@@ -76,7 +76,7 @@ needed.
 | `npm run dev` | Development server (Turbopack) |
 | `npm run build` | Production build |
 | `npm run start` | Serve the production build |
-| `npm run lint` | ESLint |
+| `npm run lint` | ESLint (`eslint .`, including tests and config files) |
 | `npm test` | Vitest unit tests |
 
 ## API routes
@@ -170,6 +170,14 @@ check linear regression, Holt and ARIMA-lite against values computed in R
 `Rscript tests/reference/generate.R` from the project root (needs R and the
 jsonlite package). GitHub Actions runs lint, tests and the build on every pull
 request and every push to `main`.
+
+## Dependency audit
+
+`npm audit --omit=dev` reports one high advisory, in postcss 8.4.31, plus a
+moderate on `next` because of it. Next 15 pins that postcss version and uses it
+only to process this project's own CSS at build time; the advisories need
+attacker-controlled CSS or source maps, so they don't apply here. Next 16
+ships a fixed postcss.
 
 ## Project structure
 
