@@ -69,8 +69,11 @@ export default function FXTracker({ initialPair }) {
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   };
 
-  const forecastPoints = isCurrent && forecast.data?.pair === pair ? forecast.data.forecast : undefined;
+  const forecastData = isCurrent && forecast.data?.pair === pair ? forecast.data : undefined;
+  const forecastPoints = forecastData?.forecast;
   const chartForecast = showForecast ? forecastPoints : undefined;
+  // Every model's 95% range fits inside this, so the y-axis holds still when the model changes.
+  const chartEnvelope = showForecast ? forecastData?.envelope : undefined;
   // The chart and the data table show the same rows.
   const rows = useMemo(
     () => (series ? buildChartRows(series, { range, forecast: chartForecast }) : null),
@@ -132,6 +135,7 @@ export default function FXTracker({ initialPair }) {
                     rows={rows}
                     stats={stats}
                     forecast={chartForecast}
+                    forecastEnvelope={chartEnvelope}
                     algorithmLabel={algorithmLabel}
                     overlays={overlays}
                     isRefreshing={!isCurrent}

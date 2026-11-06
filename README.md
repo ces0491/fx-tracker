@@ -122,8 +122,9 @@ Frankfurter can't be reached or returns a server error.
 }
 ```
 
-`/api/forecast` fetches three years of rates for the pair, fits the model to
-the last 365 and runs the back-test. `algorithm` is one of `ensemble`,
+`/api/forecast` fetches three years of rates for the pair, fits the chosen
+model to the last 365, fits the other models too for `envelope` (below) and
+runs the back-test for the chosen one. `algorithm` is one of `ensemble`,
 `trend`, `linear_regression`, `exponential_smoothing`, `arima_lite` or
 `kalman`; `horizon` is 7, 14, 30, 60 or 90. Anything else gets a 400. The
 response, abridged:
@@ -133,35 +134,43 @@ response, abridged:
   "pair": "NZD/ZAR",
   "algorithm": "kalman",
   "horizon": 30,
-  "asOf": "2026-11-05",
+  "asOf": "2026-11-06",
   "forecast": [
     {
-      "date": "2026-11-06",
-      "rate": 9.2233,
-      "lower": 9.1716,
-      "upper": 9.2754,
-      "lower80": 9.1895,
-      "upper80": 9.2573,
-      "lower50": 9.2055,
-      "upper50": 9.2412
+      "date": "2026-11-07",
+      "rate": 9.221,
+      "lower": 9.1695,
+      "upper": 9.2727,
+      "lower80": 9.1873,
+      "upper80": 9.2548,
+      "lower50": 9.2032,
+      "upper50": 9.2387
     }
   ],
+  "envelope": {
+    "lower": 8.6926,
+    "upper": 9.4632
+  },
   "backtest": {
     "forecasts": 52,
-    "firstOrigin": "2025-10-14",
-    "lastOrigin": "2026-10-06",
-    "meanAbsPctError": 2.13,
-    "noChangeMeanAbsPctError": 1.75,
+    "firstOrigin": "2025-10-15",
+    "lastOrigin": "2026-10-07",
+    "meanAbsPctError": 2.11,
+    "noChangeMeanAbsPctError": 1.73,
     "held": 52,
     "coverage": 1,
-    "held50": 30,
-    "coverage50": 0.58
+    "held50": 33,
+    "coverage50": 0.63
   }
 }
 ```
 
 In each forecast point, `lower`/`upper` bound the 95% prediction interval,
-`lower80`/`upper80` the 80% and `lower50`/`upper50` the 50%. `held` and
+`lower80`/`upper80` the 80% and `lower50`/`upper50` the 50%. `envelope` is
+the lowest and highest value of every model's central forecast and 50% range
+over the horizon, so it is the same whichever `algorithm` is asked for. The
+chart scales its y-axis to it, which keeps the scale fixed when the model
+changes; a model's wider ranges can run past the edge of the plot. `held` and
 `held50` count back-test forecasts whose actual rate fell inside the 95% and
 50% ranges. `backtest` is null when the pair has too little history for 12
 weekly origins.

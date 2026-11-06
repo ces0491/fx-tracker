@@ -9,7 +9,7 @@ import {
   parsePair,
 } from '../../lib/data/frankfurter.js';
 import { BACKTEST, backtest } from '../../lib/forecasting/backtest.js';
-import { MIN_OBSERVATIONS, runModel } from '../../lib/forecasting/models.js';
+import { MIN_OBSERVATIONS, forecastEnvelope, runModel } from '../../lib/forecasting/models.js';
 import { addDays, formatISODate } from '../../lib/utils/dateUtils.js';
 import { allowGetOnly, sendCached, sendError } from '../../lib/api/responses.js';
 
@@ -68,6 +68,9 @@ export default async function handler(req, res) {
         lower50: result.intervals[50].lower[i],
         upper50: result.intervals[50].upper[i],
       })),
+      // Every model's central forecast and 50% range at this horizon: the same whichever algorithm was asked for,
+      // so the chart's y-axis, which is scaled to it, holds still when the model changes.
+      envelope: forecastEnvelope(fitted, horizon),
       backtest: record && {
         forecasts: record.forecasts,
         firstOrigin: dates[record.firstOrigin],

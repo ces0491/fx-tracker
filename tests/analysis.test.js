@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import nzdZar from './fixtures/NZD-ZAR.json';
-import { buildChartRows, niceTicks, rangeStart } from '@/lib/analysis/chart';
+import { buildChartRows, niceTicks, rangeStart, valueDomain } from '@/lib/analysis/chart';
 import { withIndicators } from '@/lib/analysis/indicators';
 import { pairStats } from '@/lib/analysis/stats';
 import { pairFromParam } from '@/lib/config/pairs';
@@ -70,6 +70,19 @@ describe('chart helpers', () => {
       band80: [9.15, 9.45],
       band50: [9.25, 9.35],
     });
+  });
+
+  it('scales the y-axis to the forecast envelope, not to the model that drew the fan', () => {
+    const rows = [
+      { date: '2026-11-05', close: 9.2, forecast: 9.2, band: [9.2, 9.2] },
+      { date: '2026-11-06', forecast: 9.0, band: [8.0, 10.0] },
+    ];
+    const envelope = { lower: 8.9, upper: 9.4 };
+    const [min, max] = valueDomain(rows, { overlays: [], forecastEnvelope: envelope });
+    expect(min).toBeGreaterThan(8.85);
+    expect(max).toBeLessThan(9.45);
+    // Without an envelope the fan itself sets the domain.
+    expect(valueDomain(rows, { overlays: [] })[0]).toBeLessThan(8.0);
   });
 });
 

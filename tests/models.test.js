@@ -11,6 +11,7 @@ import {
   exponentialSmoothingForecast,
   fitDifferenceAR,
   fitLocalLinearTrend,
+  forecastEnvelope,
   kalmanForecast,
   linearRegressionForecast,
   runModel,
@@ -155,5 +156,14 @@ describe('every model', () => {
   it('rejects too little data and unknown algorithms', () => {
     expect(() => runModel('trend', nzdZarYear.slice(0, MIN_OBSERVATIONS - 1), 7)).toThrow(RangeError);
     expect(() => runModel('crystal_ball', nzdZarYear, 7)).toThrow(RangeError);
+  });
+});
+
+describe('forecast envelope', () => {
+  it.each([7, 90])('spans every model’s central forecast and 50%% range at %i days', (horizon) => {
+    const envelope = forecastEnvelope(nzdZarYear, horizon);
+    const results = Object.keys(MODELS).map((algorithm) => runModel(algorithm, nzdZarYear, horizon));
+    expect(envelope.lower).toBe(Math.min(...results.flatMap((r) => [...r.mean, ...r.intervals[50].lower])));
+    expect(envelope.upper).toBe(Math.max(...results.flatMap((r) => [...r.mean, ...r.intervals[50].upper])));
   });
 });

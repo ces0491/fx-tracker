@@ -68,6 +68,7 @@ export default function ChartPanel({
   rows,
   stats,
   forecast,
+  forecastEnvelope,
   algorithmLabel,
   overlays,
   isRefreshing,
@@ -82,9 +83,10 @@ export default function ChartPanel({
         valueDomain(rows, {
           overlays,
           extraValues: overlays.includes('range') && stats ? [stats.low30, stats.high30] : [],
+          forecastEnvelope,
         })
       ),
-    [rows, overlays, stats]
+    [rows, overlays, stats, forecastEnvelope]
   );
 
   const legend = [
