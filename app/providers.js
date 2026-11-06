@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { isRetryable } from '@/lib/client/queries';
 
 export default function Providers({ children }) {
   const [client] = useState(
@@ -10,8 +11,7 @@ export default function Providers({ children }) {
         defaultOptions: {
           queries: {
             refetchOnWindowFocus: false,
-            // Client errors (bad pair, too little data) won't succeed on retry.
-            retry: (failureCount, error) => (error?.status ?? 500) >= 500 && failureCount < 2,
+            retry: (failureCount, error) => failureCount < 2 && isRetryable(error),
           },
         },
       })

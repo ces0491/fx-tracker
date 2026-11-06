@@ -45,8 +45,9 @@ export default function HowItWorks({ performanceHref = '/performance' }) {
               rate per calendar day, weekends included, and Frankfurter can revise a day&apos;s rate as more sources report.
             </p>
             <p>
-              Nothing here is live. The newest figure is the latest daily rate, and the tracker keeps a copy for up to an
-              hour. Only active ISO 4217 currencies are listed.
+              Nothing here is live. The newest figure is the latest daily rate. The tracker refreshes its copy hourly,
+              and after a quiet spell the first visitor can see one up to a day old while a fresh copy is fetched. Only
+              active ISO 4217 currencies are listed.
             </p>
           </Column>
 
@@ -78,18 +79,18 @@ export default function HowItWorks({ performanceHref = '/performance' }) {
               </Term>
             ))}
             <Term name="Track record">
-              Every week over the past year, the model is refitted on the 365 days before that week and asked for a
+              Each week over the past year, the model is refitted on the 365 days before that week and asked for a
               forecast at the chosen horizon, which is then compared with the rate that followed. The average miss is set
-              against the simplest forecast there is: that the rate stays where it is. The counts show how often the
-              actual rate landed inside the 50% and 95% ranges; a well-calibrated fan catches about half and about 95% of
-              them. Neighbouring forecasts overlap in time, so treat these figures as a guide, not a precise score.{' '}
+              against a forecast that the rate stays where it is. The counts show how often the actual rate landed inside
+              the 50% and 95% ranges; a well-calibrated fan catches about half and about 95% of them. Forecasts a week
+              apart overlap in time beyond a week ahead, so the 52 of them amount to fewer independent tests.{' '}
               <Link
                 href={performanceHref}
                 className="text-foreground underline decoration-hairline underline-offset-2 hover:decoration-accent"
               >
                 Model performance
               </Link>{' '}
-              sets all six models side by side.
+              sets the six models side by side and allows for that overlap.
             </Term>
             <p>
               Tested this way on NZD/ZAR, EUR/USD and USD/JPY over the year to November 2026, none of these models was

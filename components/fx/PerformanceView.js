@@ -9,7 +9,7 @@ import MissOverTimeChart from './MissOverTimeChart';
 import SiteFooter from './SiteFooter';
 import SiteHeader from './SiteHeader';
 import SegmentedControl from '@/components/ui/segmented-control';
-import { useCurrencies, usePerformance } from '@/lib/client/queries';
+import { isRetryable, useCurrencies, usePerformance } from '@/lib/client/queries';
 import { HORIZON_OPTIONS, algorithmLabel } from '@/lib/config/forecast';
 import { formatIsoDate, formatRate, rateDecimals } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -25,7 +25,7 @@ function list(names) {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-/** The headline, composed from the verdicts rather than asserted. */
+/** The headline sentence, built from the verdicts. */
 function summary(models, horizon, independent) {
   const judged = models.filter((m) => m.available && m.vsNoChange.verdict);
   if (judged.length === 0) {
@@ -150,8 +150,8 @@ export default function PerformanceView({ initialPair, initialHorizon, initialMo
             Model performance
           </h1>
           <p className="mt-3 max-w-3xl text-muted">
-            Every week over the past year, each of the six models forecast this pair, and each forecast is set against
-            the rate that followed. The benchmark is the simplest forecast there is: that the rate stays where it is.
+            Each week over the past year, the six models forecast this pair, and the forecasts are set against the rates
+            that followed. The benchmark is a forecast that the rate stays where it is.
           </p>
 
           <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4">
@@ -190,7 +190,7 @@ export default function PerformanceView({ initialPair, initialHorizon, initialMo
             <AlertTriangle aria-hidden className="size-5 text-danger" />
             <p className="font-medium">The models for {pair} couldn&apos;t be scored</p>
             <p className="max-w-prose text-sm text-muted">{query.error.message}.</p>
-            {(query.error.status ?? 500) >= 500 && (
+            {isRetryable(query.error) && (
               <button
                 type="button"
                 onClick={() => query.refetch()}
@@ -230,7 +230,7 @@ export default function PerformanceView({ initialPair, initialHorizon, initialMo
 
             <Section
               title="Average miss by how far ahead"
-              description="The miss is the gap between a forecast and the rate on the day it was for, as a share of that rate, averaged over the year's weekly forecasts. Further ahead, every forecast misses by more."
+              description="The miss is the gap between a forecast and the rate on the day it was for, as a share of that rate, averaged over the year's weekly forecasts."
             >
               <MissByHorizonChart pair={pair} byHorizon={data.byHorizon} selected={model} />
             </Section>
@@ -359,7 +359,7 @@ export default function PerformanceView({ initialPair, initialHorizon, initialMo
             <section className="rounded-lg border border-dashed border-border-strong p-4 text-sm leading-relaxed text-muted sm:p-5">
               <p>
                 Each week from {formatIsoDate(detail.scored[0].madeOn)} to{' '}
-                {formatIsoDate(detail.scored[detail.scored.length - 1].madeOn)}, every model was refitted on the{' '}
+                {formatIsoDate(detail.scored[detail.scored.length - 1].madeOn)}, the models were refitted on the{' '}
                 {detail.windowObservations} daily rates before that week and asked for a forecast {shownHorizon} days
                 ahead. Forecasts a week apart for {shownHorizon} days ahead
                 {shownHorizon > detail.stepDays ? ' cover overlapping stretches of rates, so their misses move together' : ' do not overlap'}

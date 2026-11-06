@@ -16,7 +16,7 @@ import { buildChartRows } from '@/lib/analysis/chart';
 import { withIndicators } from '@/lib/analysis/indicators';
 import { pairStats } from '@/lib/analysis/stats';
 import { downloadCsv } from '@/lib/client/csv';
-import { useCurrencies, useForecast, useHistory, useLatestRates } from '@/lib/client/queries';
+import { isRetryable, useCurrencies, useForecast, useHistory, useLatestRates } from '@/lib/client/queries';
 import { DEFAULT_RANGE } from '@/lib/config/chart';
 import { DEFAULT_ALGORITHM, DEFAULT_HORIZON, algorithmLabel } from '@/lib/config/forecast';
 import { rateDecimals } from '@/lib/format';
@@ -133,7 +133,7 @@ export default function FXTracker({ initialPair }) {
                   <ChartPanelError
                     pair={pair}
                     message={history.error.message}
-                    canRetry={(history.error.status ?? 500) >= 500}
+                    canRetry={isRetryable(history.error)}
                     onRetry={() => history.refetch()}
                   />
                 ) : rows ? (

@@ -48,7 +48,7 @@ function HorizonTooltip({ active, payload, label, selected }) {
 
 /**
  * Average miss at each horizon. The selected model is drawn in the forecast colour against the no-change forecast
- * in ink, with the other five models in grey for context, so one comparison reads at a glance.
+ * in ink, with the other five models in grey for context.
  */
 export default function MissByHorizonChart({ pair, byHorizon, selected }) {
   const rows = byHorizon.map((h) => ({ horizon: h.horizon, noChange: h.noChangeMeanAbsPctError, ...h.models }));

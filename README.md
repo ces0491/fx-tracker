@@ -37,7 +37,8 @@ currency pairs. Built with Next.js, with rate data from
     noise variances by maximum likelihood
   - Ensemble: equal-weight average of trend, linear regression and exponential
     smoothing; its interval averages the members' half-widths
-- **Track record**: every forecast comes with a back-test. Over the last 52
+- **Track record**: a forecast comes with a back-test when the pair has
+  enough history. Over the last 52
   weeks the model is refitted each week on the preceding 365 days, and its
   forecast at the chosen horizon is compared with the rate that followed. The
   page shows the average absolute percentage miss, the same figure for a
@@ -45,7 +46,7 @@ currency pairs. Built with Next.js, with rate data from
   ranges.
 - **Model performance**: `/performance?pair=NZD-ZAR` sets the six models'
   back-tests side by side for a pair. It charts each model's average miss at
-  every horizon against the no-change forecast, and at the chosen horizon
+  each of the five horizons against the no-change forecast, and at the chosen horizon
   tables the difference from no change, how often the 50% and 95% ranges held,
   and each model's forecasts and biggest misses. Forecasts a week apart overlap
   at horizons beyond a week, so the year counts as about 52 × 7 / horizon
@@ -55,8 +56,9 @@ currency pairs. Built with Next.js, with rate data from
   verdict below 10 independent forecasts (60- and 90-day horizons).
 - **Popular pairs**: latest rate, change on the previous day and a 30-day
   sparkline for 18 preset pairs.
-- **Accessibility**: every chart has a table view, controls work from the
-  keyboard, and the light and dark themes follow the system setting.
+- **Accessibility**: the price, RSI and model performance charts have table
+  views, and each popular-pairs sparkline has a text summary. Controls work
+  from the keyboard, and the light and dark themes follow the system setting.
 - **Analytics**: Vercel Web Analytics, which sets no cookies, counts page
   views; custom events record clicks on "Start a conversation" and on the
   links to sheetsolved.com.
@@ -102,9 +104,9 @@ needed.
 | `/api/latest` | GET | Latest rate, change on the previous day and the last 30 days for the popular pairs |
 | `/api/historical?pair=NZD/ZAR` | GET | One year of daily rates as `{ date, close }` |
 | `/api/forecast?pair=NZD/ZAR&algorithm=ensemble&horizon=30` | GET | Forecast with its 95% interval and back-test |
-| `/api/performance?pair=NZD/ZAR&horizon=30` | GET | Every model's back-test, by horizon and in detail at one horizon |
+| `/api/performance?pair=NZD/ZAR&horizon=30` | GET | Each model's back-test, by horizon and in detail at one horizon |
 
-Vercel's CDN caches every route above for an hour and may serve a stale
+Vercel's CDN caches the routes above for an hour and may serve a stale
 copy for up to a day while it refreshes
 (`Vercel-CDN-Cache-Control: public, max-age=3600, stale-while-revalidate=86400`).
 Browsers revalidate on every request
@@ -188,7 +190,7 @@ envelope, and `envelope` is null if no value is finite. `held` and
 50% ranges. `backtest` is null when the pair has too little history for 12
 weekly origins.
 
-`/api/performance` runs the back-test for every model at every horizon on
+`/api/performance` runs the back-test for each model at each horizon on
 the same three years of rates; `horizon` (default 30) picks the one returned
 in detail. `byHorizon` lists the no-change forecast's and each model's
 average miss at each horizon. `backtest` holds the detail, or is null with

@@ -3,6 +3,7 @@
 import { RadioGroup } from 'radix-ui';
 import SegmentedControl from '@/components/ui/segmented-control';
 import Switch from '@/components/ui/switch';
+import { isRetryable } from '@/lib/client/queries';
 import { ALGORITHMS, HORIZON_OPTIONS } from '@/lib/config/forecast';
 import { formatIsoDate, formatPct, formatRate } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -30,13 +31,15 @@ function Result({ query, latest, decimals, unavailable }) {
       <div role="alert" className="space-y-2 text-sm">
         <p className="font-medium">The forecast didn&apos;t run</p>
         <p className="text-muted">{query.error.message}.</p>
-        <button
-          type="button"
-          onClick={() => query.refetch()}
-          className="rounded-md border border-border px-3 py-1 font-medium transition-colors hover:border-accent hover:text-accent"
-        >
-          Run it again
-        </button>
+        {isRetryable(query.error) && (
+          <button
+            type="button"
+            onClick={() => query.refetch()}
+            className="rounded-md border border-border px-3 py-1 font-medium transition-colors hover:border-accent hover:text-accent"
+          >
+            Run it again
+          </button>
+        )}
       </div>
     );
   }

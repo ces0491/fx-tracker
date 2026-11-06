@@ -105,7 +105,7 @@ export default function MissOverTimeChart({ pair, horizon, scored, points, model
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <TableDisclosure summary="Show every forecast as a table">
+      <TableDisclosure summary="Show the forecasts as a table">
         <ScrollTable
           caption={`${pair}: each ${horizon}-day forecast by ${modelName}, oldest first`}
           columns={['Made on', 'For', 'Forecast', 'Actual', 'Miss', 'No change miss', 'Inside 95% range']}

@@ -2,6 +2,7 @@
 
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import Sparkline from './Sparkline';
+import { isRetryable } from '@/lib/client/queries';
 import { POPULAR_PAIRS } from '@/lib/config/pairs';
 import { formatIsoDate, formatPct, formatRate } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -33,9 +34,10 @@ function PairTable({ pairs, rates, selected, onSelect, continuation = false }) {
           const first = entry?.series?.[0];
           return (
             // The whole row selects the pair. The button carries focus and the accessible name, and its clicks
-            // (including Enter and Space) bubble up to the row. No overlay stretched over the row: Safari ignored
-            // position: relative on table rows until WebKit bug 240961, which pinned every row's overlay to the top
-            // of the page and turned taps on the controls there into a switch to the last pair.
+            // (including Enter and Space) bubble up to the row. There is no overlay stretched over the row:
+            // Safari releases without the fix for WebKit bug 240961 (landed in WebKit in April 2026) ignore
+            // position: relative on table rows, which pinned each row's overlay to the top of the page and turned
+            // taps on the controls there into a switch to the last pair.
             <tr
               key={pair}
               onClick={() => onSelect(pair)}
@@ -100,13 +102,15 @@ export default function PopularPairs({ query, selected, onSelect }) {
       {query.isError ? (
         <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 text-sm">
           <span className="text-muted">The popular pairs didn&apos;t load: {query.error.message}.</span>
-          <button
-            type="button"
-            onClick={() => query.refetch()}
-            className="rounded-md border border-border px-3 py-1 font-medium transition-colors hover:border-accent hover:text-accent"
-          >
-            Try again
-          </button>
+          {isRetryable(query.error) && (
+            <button
+              type="button"
+              onClick={() => query.refetch()}
+              className="rounded-md border border-border px-3 py-1 font-medium transition-colors hover:border-accent hover:text-accent"
+            >
+              Try again
+            </button>
+          )}
         </div>
       ) : (
         <div className={cn('mt-3 grid gap-x-10 lg:grid-cols-2', query.isPending && 'animate-pulse')}>

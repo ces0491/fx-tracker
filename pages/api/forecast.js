@@ -28,8 +28,8 @@ export default async function handler(req, res) {
     const fitted = prices.slice(-BACKTEST.WINDOW);
     const result = runModel(algorithm, fitted, horizon);
     const record = backtest(prices, algorithm, horizon);
-    // The other models only feed the envelope, so one failing is logged and left out rather than failing the
-    // forecast that was asked for.
+    // The other models only feed the envelope, so one that fails is logged and left out, and the forecast that was
+    // asked for still returns.
     const others = ALGORITHM_VALUES.filter((a) => a !== algorithm).flatMap((other) => {
       try {
         return [runModel(other, fitted, horizon)];

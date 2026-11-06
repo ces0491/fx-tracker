@@ -50,7 +50,7 @@ export default function SiteFooter() {
             <a href={RATE_SOURCE.url} className="underline decoration-border underline-offset-2 hover:text-foreground">
               {RATE_SOURCE.name}
             </a>
-            : blended daily mid-market rates from central banks and official sources. They are daily, not live.
+            : blended daily mid-market rates from central banks and official sources.
           </p>
           <p>
             Forecasts are statistical projections from past rates and can be wrong. This page is general information, not

@@ -28,7 +28,7 @@ Forecasts (all six algorithms kept)
       back-test against a random walk, or removed from the UI
 - [ ] Help text describes what each algorithm and metric actually does
 - [ ] Unit tests (Vitest) for each algorithm on fixed fixtures
-- [ ] A model performance page sets every model's back-test beside the
+- [ ] A model performance page sets the six models' back-tests beside the
       no-change forecast, with verdicts that allow for overlapping forecasts
 
 Public hardening
