@@ -17,7 +17,7 @@ import {
   runModel,
   trendForecast,
 } from '@/lib/forecasting/models';
-import { Z_975, logReturns, sampleVariance, tQuantile975 } from '@/lib/forecasting/stats';
+import { Z_975, leastSquares, logReturns, sampleVariance, tQuantile975 } from '@/lib/forecasting/stats';
 import { observationsPerYear } from '@/lib/utils/mathUtils';
 
 const lastYear = (fixture) => fixture.series.slice(-365);
@@ -32,6 +32,17 @@ function expectClose(actual, expected, tolerance) {
 }
 
 describe('statistical helpers', () => {
+  it('fits a column that adds nothing with a zero coefficient instead of failing', () => {
+    // y = 2 * x1 exactly; x2 is all zero.
+    const X = [
+      [1, 0],
+      [2, 0],
+      [3, 0],
+    ];
+    expect(leastSquares(X, [2, 4, 6])).toEqual([2, 0]);
+    expect(leastSquares([[0], [0]], [1, -1])).toEqual([0]);
+  });
+
   it('matches R qnorm(0.975)', () => {
     expect(Math.abs(Z_975 - reference.qnorm975)).toBeLessThan(1e-14);
   });
@@ -159,11 +170,44 @@ describe('every model', () => {
   });
 });
 
+describe('pegged rates', () => {
+  // USD/AED, EUR/XOF and EUR/BAM have held one rate for over a year.
+  const peg = new Array(365).fill(3.6725);
+
+  it.each(Object.keys(MODELS))('%s forecasts no change with no spread', (algorithm) => {
+    const { mean, lower, upper } = runModel(algorithm, peg, HORIZON);
+    for (const v of [...mean, ...lower, ...upper]) expect(v).toBeCloseTo(3.6725, 10);
+  });
+
+  // A single day off the peg near either end of the window leaves some lagged-change columns all zero.
+  it.each(Object.keys(MODELS))('%s copes with a one-day blip at the edges of the window', (algorithm) => {
+    for (const daysBack of [1, 2, 363, 364]) {
+      const blip = peg.slice();
+      blip[blip.length - 1 - daysBack] = 3.6726;
+      const { mean, lower, upper } = runModel(algorithm, blip, HORIZON);
+      for (const v of [...mean, ...lower, ...upper]) expect(Number.isFinite(v)).toBe(true);
+    }
+  });
+});
+
 describe('forecast envelope', () => {
-  it.each([7, 90])('spans every model’s central forecast and 50%% range at %i days', (horizon) => {
-    const envelope = forecastEnvelope(nzdZarYear, horizon);
+  it.each([7, 90])('holds each model’s central forecast and 50%% range at %i days, and is set by them', (horizon) => {
     const results = Object.keys(MODELS).map((algorithm) => runModel(algorithm, nzdZarYear, horizon));
-    expect(envelope.lower).toBe(Math.min(...results.flatMap((r) => [...r.mean, ...r.intervals[50].lower])));
-    expect(envelope.upper).toBe(Math.max(...results.flatMap((r) => [...r.mean, ...r.intervals[50].upper])));
+    const envelope = forecastEnvelope(results);
+    for (const r of results) {
+      for (const v of [...r.mean, ...r.intervals[50].lower, ...r.intervals[50].upper]) {
+        expect(v).toBeGreaterThanOrEqual(envelope.lower);
+        expect(v).toBeLessThanOrEqual(envelope.upper);
+      }
+    }
+    expect(results.some((r) => r.intervals[50].lower.includes(envelope.lower))).toBe(true);
+    expect(results.some((r) => r.intervals[50].upper.includes(envelope.upper))).toBe(true);
+  });
+
+  it('keeps a central forecast whose bounds are not finite, and is null when nothing is finite', () => {
+    const broken = (mean) => ({ mean, intervals: { 50: { lower: [NaN, NaN], upper: [NaN, Infinity] } } });
+    expect(forecastEnvelope([broken([9.1, 9.3])])).toEqual({ lower: 9.1, upper: 9.3 });
+    expect(forecastEnvelope([broken([NaN, NaN])])).toBeNull();
+    expect(forecastEnvelope([])).toBeNull();
   });
 });

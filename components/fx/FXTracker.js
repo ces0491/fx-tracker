@@ -72,7 +72,8 @@ export default function FXTracker({ initialPair }) {
   const forecastData = isCurrent && forecast.data?.pair === pair ? forecast.data : undefined;
   const forecastPoints = forecastData?.forecast;
   const chartForecast = showForecast ? forecastPoints : undefined;
-  // Every model's 95% range fits inside this, so the y-axis holds still when the model changes.
+  // The envelope of the models' central forecasts and 50% ranges. It doesn't depend on the selected model, so the
+  // y-axis holds still when the model changes; the selected model's wider ranges can run off the plot.
   const chartEnvelope = showForecast ? forecastData?.envelope : undefined;
   // The chart and the data table show the same rows.
   const rows = useMemo(

@@ -51,6 +51,16 @@ export default async function handler(req, res) {
     const fitted = prices.slice(-BACKTEST.WINDOW);
     const result = runModel(algorithm, fitted, horizon);
     const record = backtest(prices, algorithm, horizon);
+    // The other models only feed the envelope, so one failing is logged and left out rather than failing the
+    // forecast that was asked for.
+    const others = ALGORITHM_VALUES.filter((a) => a !== algorithm).flatMap((other) => {
+      try {
+        return [runModel(other, fitted, horizon)];
+      } catch (error) {
+        console.error(`Forecast envelope: ${other} failed for ${base}/${quote} at ${horizon} days`, error);
+        return [];
+      }
+    });
 
     sendCached(res, {
       pair: `${base}/${quote}`,
@@ -68,9 +78,9 @@ export default async function handler(req, res) {
         lower50: result.intervals[50].lower[i],
         upper50: result.intervals[50].upper[i],
       })),
-      // Every model's central forecast and 50% range at this horizon: the same whichever algorithm was asked for,
-      // so the chart's y-axis, which is scaled to it, holds still when the model changes.
-      envelope: forecastEnvelope(fitted, horizon),
+      // The models' 50% ranges at this horizon: the same whichever algorithm was asked for, so the chart's
+      // y-axis, which is scaled to it, holds still when the model changes.
+      envelope: forecastEnvelope([result, ...others]),
       backtest: record && {
         forecasts: record.forecasts,
         firstOrigin: dates[record.firstOrigin],

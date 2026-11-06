@@ -167,10 +167,12 @@ response, abridged:
 
 In each forecast point, `lower`/`upper` bound the 95% prediction interval,
 `lower80`/`upper80` the 80% and `lower50`/`upper50` the 50%. `envelope` is
-the lowest and highest value of every model's central forecast and 50% range
+the lowest and highest value of the models' central forecasts and 50% ranges
 over the horizon, so it is the same whichever `algorithm` is asked for. The
 chart scales its y-axis to it, which keeps the scale fixed when the model
-changes; a model's wider ranges can run past the edge of the plot. `held` and
+changes; a model's wider ranges can run past the edge of the plot. A model
+other than the one asked for that fails to fit is logged and left out of the
+envelope, and `envelope` is null if no value is finite. `held` and
 `held50` count back-test forecasts whose actual rate fell inside the 95% and
 50% ranges. `backtest` is null when the pair has too little history for 12
 weekly origins.

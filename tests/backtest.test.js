@@ -26,6 +26,18 @@ describe('backtest', () => {
     expect(result.noChangeMeanAbsPctError).toBeCloseTo((total / result.forecasts) * 100, 10);
   });
 
+  it.each(['ensemble', 'trend', 'linear_regression', 'exponential_smoothing', 'arima_lite', 'kalman'])(
+    'counts a pegged rate inside %s’s zero-width ranges',
+    (algorithm) => {
+      const peg = new Array(prices.length).fill(655.957);
+      const result = backtest(peg, algorithm, 30);
+      expect(result.meanAbsPctError).toBeLessThan(1e-9);
+      expect(result.noChangeMeanAbsPctError).toBe(0);
+      expect(result.held).toBe(result.forecasts);
+      expect(result.held50).toBe(result.forecasts);
+    }
+  );
+
   it('is deterministic', () => {
     expect(backtest(prices, 'kalman', 14)).toEqual(backtest(prices, 'kalman', 14));
   });

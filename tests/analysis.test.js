@@ -79,7 +79,9 @@ describe('chart helpers', () => {
     ];
     const envelope = { lower: 8.9, upper: 9.4 };
     const [min, max] = valueDomain(rows, { overlays: [], forecastEnvelope: envelope });
+    expect(min).toBeLessThanOrEqual(8.9);
     expect(min).toBeGreaterThan(8.85);
+    expect(max).toBeGreaterThanOrEqual(9.4);
     expect(max).toBeLessThan(9.45);
     // Without an envelope the fan itself sets the domain.
     expect(valueDomain(rows, { overlays: [] })[0]).toBeLessThan(8.0);
