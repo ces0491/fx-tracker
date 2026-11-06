@@ -2,15 +2,15 @@
 
 import { useMemo } from 'react';
 import { AlertTriangle, Download } from 'lucide-react';
-import DataTable from './DataTable';
 import PriceChart from './PriceChart';
 import RsiChart from './RsiChart';
 import SeriesKey from '@/components/ui/series-key';
-import { buildChartRows, niceTicks, valueDomain } from '@/lib/analysis/chart';
+import { niceTicks, valueDomain } from '@/lib/analysis/chart';
 import { formatIsoDate, formatRate, rateDecimals } from '@/lib/format';
 import { cn } from '@/lib/cn';
 
-const CHART_HEIGHT = 'clamp(260px, 44vw, 440px)';
+// The price chart's least height; beside the forecast panel it grows to match the panel.
+const CHART_MIN_HEIGHT = 'clamp(260px, 44vw, 440px)';
 
 function Legend({ items }) {
   // One series needs no key: the heading above names it.
@@ -29,17 +29,17 @@ function Legend({ items }) {
 
 export function ChartPanelSkeleton() {
   return (
-    <div className="rounded-lg border border-border bg-raised p-5 shadow-card" aria-busy="true">
+    <div className="flex flex-1 flex-col rounded-lg border border-border bg-raised p-5 shadow-card" aria-busy="true">
       <span className="sr-only">Loading rates</span>
       <div className="h-4 w-48 animate-pulse rounded bg-surface" />
-      <div className="mt-4 animate-pulse rounded-md bg-surface" style={{ height: CHART_HEIGHT }} />
+      <div className="mt-4 flex-1 animate-pulse rounded-md bg-surface" style={{ minHeight: CHART_MIN_HEIGHT }} />
     </div>
   );
 }
 
 export function ChartPanelError({ pair, message, canRetry, onRetry }) {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-raised p-6 shadow-card" role="alert">
+    <div className="flex flex-1 flex-col items-start gap-3 rounded-lg border border-border bg-raised p-6 shadow-card" role="alert">
       <AlertTriangle aria-hidden className="size-5 text-danger" />
       <p className="font-medium">Rates for {pair} didn&apos;t load</p>
       <p className="max-w-prose text-sm text-muted">
@@ -59,22 +59,21 @@ export function ChartPanelError({ pair, message, canRetry, onRetry }) {
 }
 
 /**
- * Price chart, optional RSI chart and table view for one pair. While another
- * pair loads, the current one stays on screen, faded.
+ * Price chart and optional RSI chart for one pair, drawn from `rows` (buildChartRows).
+ * While another pair loads, the current one stays on screen, faded.
  */
 export default function ChartPanel({
   pair,
   series,
+  rows,
   stats,
   forecast,
   algorithmLabel,
   overlays,
-  range,
   isRefreshing,
   loadingPair,
   onDownload,
 }) {
-  const rows = useMemo(() => buildChartRows(series, { range, forecast }), [series, range, forecast]);
   const lastObserved = series[series.length - 1];
   const decimals = rateDecimals(lastObserved.close);
   const axis = useMemo(
@@ -108,7 +107,7 @@ export default function ChartPanel({
   )}${forecast?.length ? `, with a ${forecast.length}-day forecast` : ''}. The same figures are in the table below the chart.`;
 
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-raised p-4 shadow-card sm:p-5">
+    <div className="flex min-w-0 flex-1 flex-col rounded-lg border border-border bg-raised p-4 shadow-card sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0 flex-1">
           <Legend items={legend} />
@@ -130,8 +129,9 @@ export default function ChartPanel({
           )}
         </div>
       </div>
-      <div className={cn('mt-3 space-y-4 transition-opacity', isRefreshing && 'opacity-40')} aria-busy={isRefreshing}>
-        <figure role="img" aria-label={summary}>
+      <div className={cn('mt-3 flex flex-1 flex-col gap-4 transition-opacity', isRefreshing && 'opacity-40')} aria-busy={isRefreshing}>
+        {/* The chart is positioned out of flow so its size follows the card and never feeds back into it. */}
+        <figure role="img" aria-label={summary} className="relative flex-1" style={{ minHeight: CHART_MIN_HEIGHT }}>
           <PriceChart
             rows={rows}
             domain={axis.domain}
@@ -141,12 +141,11 @@ export default function ChartPanel({
             overlays={overlays}
             stats={stats}
             lastObservedDate={lastObserved.date}
-            height={CHART_HEIGHT}
+            className="absolute inset-0"
           />
         </figure>
         {overlays.includes('rsi') && <RsiChart rows={rows} />}
       </div>
-      <DataTable pair={pair} rows={rows} decimals={decimals} />
     </div>
   );
 }

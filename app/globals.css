@@ -77,6 +77,8 @@
   --color-danger: var(--danger);
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --shadow-card: var(--shadow-card);
+  /* Page width shared by the header, hero, main content and footer (max-w-page). */
+  --container-page: 90rem;
 }
 
 @layer base {

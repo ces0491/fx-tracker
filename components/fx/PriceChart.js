@@ -71,14 +71,15 @@ function ChartTooltip({ active, payload, label, decimals, overlays }) {
  * Daily rate with optional overlays, and the forecast as a fan of 50%, 80%
  * and 95% prediction intervals. `rows` come from buildChartRows; a rule at the
  * last observed date separates what happened from what the model projects.
+ * The chart fills its container, so `className` must give that container a size.
  */
-export default function PriceChart({ rows, domain, ticks, tickDecimals, decimals, overlays, stats, lastObservedDate, height }) {
+export default function PriceChart({ rows, domain, ticks, tickDecimals, decimals, overlays, stats, lastObservedDate, className }) {
   const lastDate = rows[rows.length - 1]?.date;
   const hasForecast = lastDate !== lastObservedDate;
   const showRange = overlays.includes('range') && stats;
 
   return (
-    <div style={{ height }}>
+    <div className={className}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} syncId="fx" margin={{ top: 12, right: 0, bottom: 0, left: 4 }}>
           <CartesianGrid vertical={false} stroke="var(--chart-grid)" />

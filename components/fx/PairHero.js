@@ -17,7 +17,7 @@ export default function PairHero({ base, quote, currencies, stats, status, onBas
 
   return (
     <section aria-labelledby="pair-heading">
-      <div className="mx-auto max-w-6xl px-4 pb-10 pt-10 sm:px-8 sm:pt-16">
+      <div className="mx-auto max-w-page px-4 pb-10 pt-10 sm:px-8 sm:pt-16">
         <h1 id="pair-heading" className="text-sm text-muted sm:text-base">
           {names[base] ?? base} to {names[quote] ?? quote}
         </h1>

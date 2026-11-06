@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ChartPanel, { ChartPanelError, ChartPanelSkeleton } from './ChartPanel';
 import ChartToolbar from './ChartToolbar';
+import DataTable from './DataTable';
 import ForecastPanel from './ForecastPanel';
 import HowItWorks from './HowItWorks';
 import PairHero from './PairHero';
@@ -11,6 +12,7 @@ import SiteFooter from './SiteFooter';
 import SiteHeader from './SiteHeader';
 import StatsStrip from './StatsStrip';
 import TrackRecord from './TrackRecord';
+import { buildChartRows } from '@/lib/analysis/chart';
 import { withIndicators } from '@/lib/analysis/indicators';
 import { pairStats } from '@/lib/analysis/stats';
 import { downloadCsv } from '@/lib/client/csv';
@@ -68,6 +70,12 @@ export default function FXTracker({ initialPair }) {
   };
 
   const forecastPoints = isCurrent && forecast.data?.pair === pair ? forecast.data.forecast : undefined;
+  const chartForecast = showForecast ? forecastPoints : undefined;
+  // The chart and the data table show the same rows.
+  const rows = useMemo(
+    () => (series ? buildChartRows(series, { range, forecast: chartForecast }) : null),
+    [series, range, chartForecast]
+  );
   const algorithmLabel = ALGORITHMS.find((a) => a.value === algorithm)?.label ?? algorithm;
 
   const exportCsv = () => {
@@ -101,12 +109,15 @@ export default function FXTracker({ initialPair }) {
           onSwap={swap}
         />
 
-        <div className="mx-auto max-w-6xl space-y-12 px-4 pb-20 sm:px-8">
+        <div className="mx-auto max-w-page space-y-12 px-4 pb-20 sm:px-8">
           <section aria-label="Chart and forecast">
             <ChartToolbar range={range} onRangeChange={setRange} overlays={overlays} onOverlaysChange={setOverlays} />
-            {/* Chart and track record on the left, forecast controls on the right; stacked in that order on phones. */}
-            <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
-              <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+            {/*
+              Chart and forecast side by side at equal height, the chart growing to fill its card; the data table and
+              track record run full width below. Stacked in this order on phones.
+            */}
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
+              <div className="flex min-w-0 flex-col">
                 {historyFailed ? (
                   <ChartPanelError
                     pair={pair}
@@ -114,15 +125,15 @@ export default function FXTracker({ initialPair }) {
                     canRetry={(history.error.status ?? 500) >= 500}
                     onRetry={() => history.refetch()}
                   />
-                ) : series ? (
+                ) : rows ? (
                   <ChartPanel
                     pair={shownPair}
                     series={series}
+                    rows={rows}
                     stats={stats}
-                    forecast={showForecast ? forecastPoints : undefined}
+                    forecast={chartForecast}
                     algorithmLabel={algorithmLabel}
                     overlays={overlays}
-                    range={range}
                     isRefreshing={!isCurrent}
                     loadingPair={pair}
                     onDownload={exportCsv}
@@ -131,21 +142,24 @@ export default function FXTracker({ initialPair }) {
                   <ChartPanelSkeleton />
                 )}
               </div>
-              <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
-                <ForecastPanel
-                  algorithm={algorithm}
-                  onAlgorithmChange={setAlgorithm}
-                  horizon={horizon}
-                  onHorizonChange={setHorizon}
-                  unavailable={historyFailed}
-                  showOnChart={showForecast}
-                  onShowOnChartChange={setShowForecast}
-                  query={forecast}
-                  latest={isCurrent ? stats?.latest : null}
-                  decimals={isCurrent && stats ? rateDecimals(stats.latest.close) : 4}
-                />
-              </div>
-              <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+              <ForecastPanel
+                algorithm={algorithm}
+                onAlgorithmChange={setAlgorithm}
+                horizon={horizon}
+                onHorizonChange={setHorizon}
+                unavailable={historyFailed}
+                showOnChart={showForecast}
+                onShowOnChartChange={setShowForecast}
+                query={forecast}
+                latest={isCurrent ? stats?.latest : null}
+                decimals={isCurrent && stats ? rateDecimals(stats.latest.close) : 4}
+              />
+              {rows && (
+                <div className="min-w-0 lg:col-span-2">
+                  <DataTable pair={shownPair} rows={rows} decimals={rateDecimals(series[series.length - 1].close)} />
+                </div>
+              )}
+              <div className="min-w-0 lg:col-span-2">
                 <TrackRecord query={forecast} algorithmLabel={algorithmLabel} horizon={horizon} unavailable={historyFailed} />
               </div>
             </div>

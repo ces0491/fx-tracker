@@ -56,7 +56,7 @@ export default function TrackRecord({ query, algorithmLabel, horizon, unavailabl
             The last {record.forecasts} weekly forecasts, made from {formatIsoDate(record.firstOrigin, DATE)} to{' '}
             {formatIsoDate(record.lastOrigin, DATE)}, set against the rates that followed.
           </p>
-          <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-2 xl:grid-cols-4">
+          <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
             <Figure label="Average miss" value={`${record.meanAbsPctError.toFixed(2)}%`} />
             <Figure label="Assuming no change" value={`${record.noChangeMeanAbsPctError.toFixed(2)}%`} note="Average miss" />
             <Figure

@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { formatIsoDate, formatRate } from '@/lib/format';
 
+// Each table starts at its natural width and grows into spare room; they sit side by side when both fit and
+// stack when they don't. Only a screen narrower than one table scrolls it sideways.
 function Table({ caption, columns, rows }) {
   return (
-    <div className="max-h-80 overflow-auto rounded-md border border-border">
+    <div className="max-h-80 min-w-0 flex-auto overflow-auto rounded-md border border-border">
       <table className="w-full text-sm tabular-nums">
         <caption className="sr-only">{caption}</caption>
         <thead className="sticky top-0 bg-surface text-left text-xs text-muted">
@@ -47,10 +49,15 @@ export default function DataTable({ pair, rows, decimals }) {
   const rate = (v) => (v == null ? '' : formatRate(v, decimals));
 
   return (
-    <details className="mt-4 border-t border-border pt-3" onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary className="cursor-pointer text-sm text-muted hover:text-foreground">Show the chart data as a table</summary>
+    <details
+      className="rounded-lg border border-border bg-raised shadow-card"
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary className="cursor-pointer rounded-lg px-4 py-3 text-sm text-muted hover:text-foreground sm:px-5">
+        Show the chart data as a table
+      </summary>
       {open && (
-        <div className="mt-3 grid gap-4 xl:grid-cols-2">
+        <div className="flex flex-wrap gap-4 px-4 pb-4 sm:px-5 sm:pb-5">
           <Table
             caption={`${pair} daily rates for the selected range, newest first`}
             columns={['Date', 'Rate', '5-day avg', '20-day avg', 'RSI']}

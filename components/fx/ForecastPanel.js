@@ -15,12 +15,14 @@ function Result({ query, latest, decimals, unavailable }) {
   }
 
   if (!latest || (query.isPending && !query.data)) {
+    // Same line heights as the result below, so the panel (and the chart sized to it) doesn't jump when it arrives.
     return (
-      <div className="space-y-2" aria-busy="true">
+      <div aria-busy="true">
         <span className="sr-only">Running the forecast</span>
-        <div className="h-4 w-32 animate-pulse rounded bg-surface" />
-        <div className="h-9 w-40 animate-pulse rounded bg-surface" />
-        <div className="h-4 w-48 animate-pulse rounded bg-surface" />
+        <div className="h-5 w-32 animate-pulse rounded bg-surface" />
+        <div className="mt-0.5 h-9 w-40 animate-pulse rounded bg-surface" />
+        <div className="mt-1 h-5 w-48 animate-pulse rounded bg-surface" />
+        <div className="mt-3 h-11 w-full animate-pulse rounded bg-surface" />
       </div>
     );
   }
@@ -81,7 +83,7 @@ export default function ForecastPanel({
   const selected = ALGORITHMS.find((a) => a.value === algorithm);
 
   return (
-    <aside aria-labelledby="forecast-heading" className="rounded-lg border border-border bg-raised p-5 shadow-card">
+    <aside aria-labelledby="forecast-heading" className="flex flex-col rounded-lg border border-border bg-raised p-5 shadow-card">
       <div className="flex items-center justify-between gap-4">
         <h2 id="forecast-heading" className="text-base font-semibold">
           Forecast
@@ -125,14 +127,16 @@ export default function ForecastPanel({
             </label>
           ))}
         </RadioGroup.Root>
-        <p className="mt-2 text-sm text-muted">{selected?.description}</p>
+        {/* Room for the longest description, so switching models doesn't resize the chart beside the panel. */}
+        <p className="mt-2 text-sm text-muted lg:min-h-[4lh]">{selected?.description}</p>
       </div>
 
       <div className="mt-5 border-t border-border pt-4">
         <Result query={query} latest={latest} decimals={decimals} unavailable={unavailable} />
       </div>
 
-      <p className="mt-5 text-xs leading-relaxed text-muted">
+      {/* Pinned to the bottom when the chart beside the panel is the taller of the two. */}
+      <p className="mt-auto pt-5 text-xs leading-relaxed text-muted">
         A statistical projection from the past year of daily rates. It extends recent patterns and can be wrong. General
         information, not financial advice.
       </p>
