@@ -3,11 +3,9 @@
 import { RadioGroup } from 'radix-ui';
 import SegmentedControl from '@/components/ui/segmented-control';
 import Switch from '@/components/ui/switch';
-import { ALGORITHMS, HORIZONS } from '@/lib/config/forecast';
+import { ALGORITHMS, HORIZON_OPTIONS } from '@/lib/config/forecast';
 import { formatIsoDate, formatPct, formatRate } from '@/lib/format';
 import { cn } from '@/lib/cn';
-
-const HORIZON_OPTIONS = HORIZONS.map((days) => ({ value: String(days), label: `${days}d`, title: `${days} days` }));
 
 function Result({ query, latest, decimals, unavailable }) {
   if (unavailable) {

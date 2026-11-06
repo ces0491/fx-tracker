@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { formatIsoDate } from '@/lib/format';
 import { cn } from '@/lib/cn';
 
@@ -24,7 +25,7 @@ function Figure({ label, value, note }) {
 }
 
 /** How the selected model's past forecasts compared with what happened (back-test). */
-export default function TrackRecord({ query, algorithmLabel, horizon, unavailable }) {
+export default function TrackRecord({ query, algorithmLabel, horizon, unavailable, performanceHref }) {
   if (unavailable || query.isError) return null;
 
   const record = query.data?.backtest;
@@ -70,7 +71,15 @@ export default function TrackRecord({ query, algorithmLabel, horizon, unavailabl
               note={`About ${Math.round(0.95 * record.forecasts)} if calibrated`}
             />
           </dl>
-          <p className="mt-3 text-sm">{verdict(record.meanAbsPctError, record.noChangeMeanAbsPctError)}</p>
+          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
+            <p>{verdict(record.meanAbsPctError, record.noChangeMeanAbsPctError)}</p>
+            <Link
+              href={performanceHref}
+              className="shrink-0 font-medium text-accent underline decoration-hairline underline-offset-4 hover:decoration-accent"
+            >
+              Compare all six models
+            </Link>
+          </div>
         </>
       )}
     </section>

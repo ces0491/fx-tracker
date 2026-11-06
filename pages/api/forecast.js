@@ -1,31 +1,19 @@
 // pages/api/forecast.js - Forecast for a pair, with the model's back-tested track record
+import { loadForecastHistory } from '../../lib/api/forecastHistory.js';
+import { allowGetOnly, sendCached, sendError } from '../../lib/api/responses.js';
 import { ALGORITHMS, HORIZONS } from '../../lib/config/forecast.js';
 import { RATE_SOURCE } from '../../lib/config/source.js';
-import {
-  RateSourceError,
-  assertSupported,
-  getDailyRates,
-  isoDateDaysAgo,
-  parsePair,
-} from '../../lib/data/frankfurter.js';
+import { RateSourceError } from '../../lib/data/frankfurter.js';
 import { BACKTEST, backtest } from '../../lib/forecasting/backtest.js';
-import { MIN_OBSERVATIONS, forecastEnvelope, runModel } from '../../lib/forecasting/models.js';
+import { forecastEnvelope, runModel } from '../../lib/forecasting/models.js';
 import { addDays, formatISODate } from '../../lib/utils/dateUtils.js';
-import { allowGetOnly, sendCached, sendError } from '../../lib/api/responses.js';
 
-// Three years: a year to fit at each back-test origin, a year of weekly
-// origins, and room for the longest horizon after the last one.
-const HISTORY_DAYS = 3 * 365;
 const ALGORITHM_VALUES = ALGORITHMS.map((a) => a.value);
 
 export default async function handler(req, res) {
   if (!allowGetOnly(req, res)) return;
 
   try {
-    const pair = parsePair(req.query.pair);
-    if (!pair) {
-      throw new RateSourceError('pair must be two different three-letter currency codes, e.g. NZD/ZAR', 400);
-    }
     const algorithm = req.query.algorithm;
     if (!ALGORITHM_VALUES.includes(algorithm)) {
       throw new RateSourceError(`algorithm must be one of ${ALGORITHM_VALUES.join(', ')}`, 400);
@@ -35,18 +23,7 @@ export default async function handler(req, res) {
       throw new RateSourceError(`horizon must be one of ${HORIZONS.join(', ')} days`, 400);
     }
 
-    const { base, quote } = pair;
-    await assertSupported([base, quote]);
-    const series = (await getDailyRates(base, [quote], isoDateDaysAgo(HISTORY_DAYS))).get(quote);
-    if (series.length < MIN_OBSERVATIONS) {
-      throw new RateSourceError(
-        `Only ${series.length} daily rates are available for ${base}/${quote}; at least ${MIN_OBSERVATIONS} are needed`,
-        422
-      );
-    }
-
-    const prices = series.map((p) => p.close);
-    const dates = series.map((p) => p.date);
+    const { base, quote, prices, dates } = await loadForecastHistory(req.query.pair);
     const lastDate = dates[dates.length - 1];
     const fitted = prices.slice(-BACKTEST.WINDOW);
     const result = runModel(algorithm, fitted, horizon);

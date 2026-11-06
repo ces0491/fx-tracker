@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ALGORITHMS } from '@/lib/config/forecast';
 import { RATE_SOURCE } from '@/lib/config/source';
 
@@ -26,7 +27,7 @@ function Term({ name, children }) {
   );
 }
 
-export default function HowItWorks() {
+export default function HowItWorks({ performanceHref = '/performance' }) {
   return (
     <section id="how-it-works" aria-labelledby="how-heading" className="scroll-mt-20">
       <h2 id="how-heading" className="text-xl font-semibold tracking-tight">
@@ -81,7 +82,14 @@ export default function HowItWorks() {
               forecast at the chosen horizon, which is then compared with the rate that followed. The average miss is set
               against the simplest forecast there is: that the rate stays where it is. The counts show how often the
               actual rate landed inside the 50% and 95% ranges; a well-calibrated fan catches about half and about 95% of
-              them. Neighbouring forecasts overlap in time, so treat these figures as a guide, not a precise score.
+              them. Neighbouring forecasts overlap in time, so treat these figures as a guide, not a precise score.{' '}
+              <Link
+                href={performanceHref}
+                className="text-foreground underline decoration-hairline underline-offset-2 hover:decoration-accent"
+              >
+                Model performance
+              </Link>{' '}
+              sets all six models side by side.
             </Term>
             <p>
               Tested this way on NZD/ZAR, EUR/USD and USD/JPY over the year to November 2026, none of these models was

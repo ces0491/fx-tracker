@@ -1,45 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import ScrollTable from '@/components/ui/scroll-table';
 import { formatIsoDate, formatRate } from '@/lib/format';
 
 // Each table starts at its natural width and grows into spare room; they sit side by side when both fit and
 // stack when they don't. Only a screen narrower than one table scrolls it sideways.
-function Table({ caption, columns, rows }) {
-  return (
-    <div className="max-h-80 min-w-0 flex-auto overflow-auto rounded-md border border-border">
-      <table className="w-full text-sm tabular-nums">
-        <caption className="sr-only">{caption}</caption>
-        <thead className="sticky top-0 bg-surface text-left text-xs text-muted">
-          <tr>
-            {columns.map((column, i) => (
-              <th key={column} scope="col" className={`px-3 py-2 font-medium ${i > 0 ? 'text-right' : ''}`}>
-                {column}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row[0]} className="border-t border-border">
-              {row.map((cell, i) =>
-                i === 0 ? (
-                  <th key="date" scope="row" className="whitespace-nowrap px-3 py-1.5 text-left font-normal">
-                    {cell}
-                  </th>
-                ) : (
-                  <td key={i} className="px-3 py-1.5 text-right">
-                    {cell}
-                  </td>
-                )
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+const TABLE_FIT = 'min-w-0 flex-auto';
 
 /** The chart's figures as tables, rendered only once opened. */
 export default function DataTable({ pair, rows, decimals }) {
@@ -58,7 +25,8 @@ export default function DataTable({ pair, rows, decimals }) {
       </summary>
       {open && (
         <div className="flex flex-wrap gap-4 px-4 pb-4 sm:px-5 sm:pb-5">
-          <Table
+          <ScrollTable
+            className={TABLE_FIT}
             caption={`${pair} daily rates for the selected range, newest first`}
             columns={['Date', 'Rate', '5-day avg', '20-day avg', 'RSI']}
             rows={observed.map((r) => [
@@ -70,7 +38,8 @@ export default function DataTable({ pair, rows, decimals }) {
             ])}
           />
           {projected.length > 0 && (
-            <Table
+            <ScrollTable
+              className={TABLE_FIT}
               caption={`${pair} forecast`}
               columns={['Date', 'Forecast', '50% low', '50% high', '95% low', '95% high']}
               rows={projected.map((r) => [

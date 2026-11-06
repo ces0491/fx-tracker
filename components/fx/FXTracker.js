@@ -18,7 +18,7 @@ import { pairStats } from '@/lib/analysis/stats';
 import { downloadCsv } from '@/lib/client/csv';
 import { useCurrencies, useForecast, useHistory, useLatestRates } from '@/lib/client/queries';
 import { DEFAULT_RANGE } from '@/lib/config/chart';
-import { ALGORITHMS, DEFAULT_ALGORITHM, DEFAULT_HORIZON } from '@/lib/config/forecast';
+import { DEFAULT_ALGORITHM, DEFAULT_HORIZON, algorithmLabel } from '@/lib/config/forecast';
 import { rateDecimals } from '@/lib/format';
 
 const EMPTY = [];
@@ -80,7 +80,7 @@ export default function FXTracker({ initialPair }) {
     () => (series ? buildChartRows(series, { range, forecast: chartForecast }) : null),
     [series, range, chartForecast]
   );
-  const algorithmLabel = ALGORITHMS.find((a) => a.value === algorithm)?.label ?? algorithm;
+  const algorithmName = algorithmLabel(algorithm);
 
   const exportCsv = () => {
     if (!series || !isCurrent) return;
@@ -98,9 +98,16 @@ export default function FXTracker({ initialPair }) {
     );
   };
 
+  const performanceHref = `/performance?pair=${pair.replace('/', '-')}&horizon=${horizon}&model=${algorithm}`;
+
   return (
     <>
-      <SiteHeader />
+      <SiteHeader
+        links={[
+          { href: performanceHref, label: 'Model performance', shortLabel: 'Models' },
+          { href: '#how-it-works', label: 'How it works', hideOnPhone: true },
+        ]}
+      />
       <main>
         <PairHero
           base={base}
@@ -137,7 +144,7 @@ export default function FXTracker({ initialPair }) {
                     stats={stats}
                     forecast={chartForecast}
                     forecastEnvelope={chartEnvelope}
-                    algorithmLabel={algorithmLabel}
+                    algorithmLabel={algorithmName}
                     overlays={overlays}
                     isRefreshing={!isCurrent}
                     loadingPair={pair}
@@ -165,7 +172,13 @@ export default function FXTracker({ initialPair }) {
                 </div>
               )}
               <div className="min-w-0 lg:col-span-2">
-                <TrackRecord query={forecast} algorithmLabel={algorithmLabel} horizon={horizon} unavailable={historyFailed} />
+                <TrackRecord
+                  query={forecast}
+                  algorithmLabel={algorithmName}
+                  horizon={horizon}
+                  unavailable={historyFailed}
+                  performanceHref={performanceHref}
+                />
               </div>
             </div>
           </section>
@@ -174,7 +187,7 @@ export default function FXTracker({ initialPair }) {
 
           <PopularPairs query={latest} selected={pair} onSelect={selectPopular} />
 
-          <HowItWorks />
+          <HowItWorks performanceHref={performanceHref} />
         </div>
       </main>
       <SiteFooter />

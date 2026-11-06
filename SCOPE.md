@@ -28,6 +28,8 @@ Forecasts (all six algorithms kept)
       back-test against a random walk, or removed from the UI
 - [ ] Help text describes what each algorithm and metric actually does
 - [ ] Unit tests (Vitest) for each algorithm on fixed fixtures
+- [ ] A model performance page sets every model's back-test beside the
+      no-change forecast, with verdicts that allow for overlapping forecasts
 
 Public hardening
 - [ ] News, AI enrichment, `/api/rates`, `/api/news*` and the Anthropic SDK removed
@@ -78,3 +80,4 @@ Sheet Solved site.
 ## Revision history
 
 - 2026-11-05: initial scope
+- 2026-11-06: added the model performance page, at Ces's request

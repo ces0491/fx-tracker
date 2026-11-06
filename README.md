@@ -43,6 +43,16 @@ currency pairs. Built with Next.js, with rate data from
   page shows the average absolute percentage miss, the same figure for a
   no-change forecast, and how many actual rates landed inside the 50% and 95%
   ranges.
+- **Model performance**: `/performance?pair=NZD-ZAR` sets the six models'
+  back-tests side by side for a pair. It charts each model's average miss at
+  every horizon against the no-change forecast, and at the chosen horizon
+  tables the difference from no change, how often the 50% and 95% ranges held,
+  and each model's forecasts and biggest misses. Forecasts a week apart overlap
+  at horizons beyond a week, so the year counts as about 52 × 7 / horizon
+  independent forecasts: the comparison with no change is a Diebold-Mariano
+  test with Newey-West standard errors over the overlapping lags, the range
+  checks use binomial standard errors on that count, and neither gives a
+  verdict below 10 independent forecasts (60- and 90-day horizons).
 - **Popular pairs**: latest rate, change on the previous day and a 30-day
   sparkline for 18 preset pairs.
 - **Accessibility**: every chart has a table view, controls work from the
@@ -92,6 +102,7 @@ needed.
 | `/api/latest` | GET | Latest rate, change on the previous day and the last 30 days for the popular pairs |
 | `/api/historical?pair=NZD/ZAR` | GET | One year of daily rates as `{ date, close }` |
 | `/api/forecast?pair=NZD/ZAR&algorithm=ensemble&horizon=30` | GET | Forecast with its 95% interval and back-test |
+| `/api/performance?pair=NZD/ZAR&horizon=30` | GET | Every model's back-test, by horizon and in detail at one horizon |
 
 Vercel's CDN caches every route above for an hour and may serve a stale
 copy for up to a day while it refreshes
@@ -177,6 +188,17 @@ envelope, and `envelope` is null if no value is finite. `held` and
 50% ranges. `backtest` is null when the pair has too little history for 12
 weekly origins.
 
+`/api/performance` runs the back-test for every model at every horizon on
+the same three years of rates; `horizon` (default 30) picks the one returned
+in detail. `byHorizon` lists the no-change forecast's and each model's
+average miss at each horizon. `backtest` holds the detail, or is null with
+too little history: the weekly forecasts' dates and outcomes once in
+`scored`, and for each model its average miss, `vsNoChange` (the difference
+in percentage points, its standard error and a verdict of `better`, `worse`,
+`level` or null when too few forecasts are independent), the 50% and 95%
+range checks, and its `points` in the same order as `scored`. A model whose
+back-test fails is logged and returned with `available: false`.
+
 ## Tests
 
 `npm test` runs the Vitest suite in `tests/`. The model tests use three years
@@ -198,15 +220,17 @@ ships a fixed postcss.
 ## Project structure
 
 ```text
-app/                 Page, root layout, error boundary, query provider,
-                     icon and Open Graph image
+app/                 Pages (tracker and model performance), root layout,
+                     error boundary, query provider, icon and Open Graph image
 components/
   fx/                Page sections: header, pair heading, chart, forecast,
-                     statistics, popular pairs, how it works, footer
-  ui/                Small shared controls (segmented control, switch, series key)
+                     statistics, popular pairs, how it works, model
+                     performance charts, footer
+  ui/                Small shared controls (segmented control, switch, series
+                     key, tables)
 lib/
   analysis/          Indicators, summary statistics, chart rows and axis ticks
-  api/               Shared API response helpers
+  api/               Shared API response and forecast-history helpers
   client/            Data-fetching hooks and CSV export
   config/            Pairs, chart ranges and overlays, forecast models, links
   data/              Frankfurter v2 client
