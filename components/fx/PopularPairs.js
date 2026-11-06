@@ -32,17 +32,17 @@ function PairTable({ pairs, rates, selected, onSelect, continuation = false }) {
           const Arrow = entry?.changePct < 0 ? ArrowDown : ArrowUp;
           const first = entry?.series?.[0];
           return (
+            // The whole row selects the pair. The button carries focus and the accessible name, and its clicks
+            // (including Enter and Space) bubble up to the row. No overlay stretched over the row: Safari ignored
+            // position: relative on table rows until WebKit bug 240961, which pinned every row's overlay to the top
+            // of the page and turned taps on the controls there into a switch to the last pair.
             <tr
               key={pair}
-              className={cn('relative border-t border-border transition-colors hover:bg-tint', isSelected && 'bg-tint-strong')}
+              onClick={() => onSelect(pair)}
+              className={cn('cursor-pointer border-t border-border transition-colors hover:bg-tint', isSelected && 'bg-tint-strong')}
             >
               <th scope="row" className="py-2.5 pl-2 text-left font-medium">
-                <button
-                  type="button"
-                  onClick={() => onSelect(pair)}
-                  aria-pressed={isSelected}
-                  className="rounded after:absolute after:inset-0 after:content-['']"
-                >
+                <button type="button" aria-pressed={isSelected} className="rounded">
                   {pair}
                 </button>
               </th>
