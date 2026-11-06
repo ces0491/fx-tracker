@@ -52,6 +52,13 @@ describe('chart helpers', () => {
     expect(rangeStart('2026-11-05', '1Y')).toBeNull();
   });
 
+  it('clamps ranges that start from a month end to the shorter month', () => {
+    expect(rangeStart('2026-03-31', '1M')).toBe('2026-02-28');
+    expect(rangeStart('2024-03-31', '1M')).toBe('2024-02-29');
+    expect(rangeStart('2026-05-31', '3M')).toBe('2026-02-28');
+    expect(rangeStart('2026-01-31', '3M')).toBe('2025-10-31');
+  });
+
   it('joins the forecast to the last observed rate and drops forecast dates already observed', () => {
     const series = withIndicators(year);
     const last = series[series.length - 1];
@@ -91,6 +98,15 @@ describe('chart helpers', () => {
 describe('statistics', () => {
   it('reads a calendar-daily series as about 365 observations a year', () => {
     expect(observationsPerYear(year.map((p) => p.date))).toBeCloseTo(365.25, 0);
+  });
+
+  it('gives no RSI for a rate that has not moved, and 100 when it has only risen', () => {
+    const days = (closes) => closes.map((close, i) => ({ date: `2026-01-${String(i + 1).padStart(2, '0')}`, close }));
+    const flat = withIndicators(days(new Array(20).fill(3.6725)));
+    expect(flat[flat.length - 1].rsi).toBeNull();
+    expect(pairStats(flat).rsi).toBeNull();
+    const rising = withIndicators(days(Array.from({ length: 20 }, (_, i) => 1 + i / 100)));
+    expect(rising[rising.length - 1].rsi).toBe(100);
   });
 
   it('computes the day change and the 30-day range from closes', () => {

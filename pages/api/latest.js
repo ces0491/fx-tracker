@@ -23,10 +23,16 @@ export default async function handler(req, res) {
       quotesByBase.set(base, [...(quotesByBase.get(base) ?? []), quote]);
     }
 
+    // A base that fails upstream costs only its own pairs, which the table shows as unavailable.
     const from = isoDateDaysAgo(LOOKBACK_DAYS);
-    const results = await Promise.all(
-      [...quotesByBase].map(async ([base, quotes]) => [base, await getDailyRates(base, quotes, from)])
-    );
+    const bases = [...quotesByBase];
+    const settled = await Promise.allSettled(bases.map(([base, quotes]) => getDailyRates(base, quotes, from)));
+    const failed = settled.filter((s) => s.status === 'rejected');
+    if (failed.length === settled.length) throw failed[0].reason;
+    settled.forEach((s, i) => {
+      if (s.status === 'rejected') console.error(`Latest rates: ${bases[i][0]} failed`, s.reason);
+    });
+    const results = settled.flatMap((s, i) => (s.status === 'fulfilled' ? [[bases[i][0], s.value]] : []));
 
     const rates = {};
     for (const [base, byQuote] of results) {

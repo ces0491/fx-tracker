@@ -93,7 +93,7 @@ export default function FXTracker({ initialPair }) {
     }
     downloadCsv(
       `${pair.replace('/', '-')}_daily_rates.csv`,
-      ['date', 'rate', 'sma_5', 'sma_20', 'bollinger_lower', 'bollinger_upper', 'rsi_14', `forecast_${algorithm}`, 'lower_50', 'upper_50', 'lower_80', 'upper_80', 'lower_95', 'upper_95'],
+      ['date', 'rate', 'sma_5', 'sma_20', 'bollinger_lower', 'bollinger_upper', 'rsi_14', `forecast_${forecastData?.algorithm ?? algorithm}`, 'lower_50', 'upper_50', 'lower_80', 'upper_80', 'lower_95', 'upper_95'],
       rows
     );
   };
