@@ -230,6 +230,8 @@ components/
                      performance charts, footer
   ui/                Small shared controls (segmented control, switch, series
                      key, tables)
+docs/findings.md     Model evaluations run on the app's back-test outside the
+                     app (Timestral, 2026-11-20)
 lib/
   analysis/          Indicators, summary statistics, chart rows and axis ticks
   api/               Shared API response and forecast-history helpers
@@ -239,6 +241,7 @@ lib/
   forecasting/       Models, back-test and numerical helpers
   utils/             Maths and date helpers
 pages/api/           API routes
+research/            Scripts behind docs/findings.md; not part of the app
 tests/               Vitest suite, rate fixtures and R reference values
 ```
 
